@@ -5,7 +5,7 @@ import { AgentOpsConfig } from './types';
 import { createGlobalResourceAttributes } from './attributes';
 import { AgentOpsAPI, TokenResponse, BearerToken } from './api';
 
-class AgentOps {
+export class AgentOps {
   private config: AgentOpsConfig;
   public readonly registry: InstrumentationRegistry;
   private sdk: OpenTelemetryNodeSDK | null = null;
@@ -104,5 +104,3 @@ class AgentOps {
   }
 }
 
-// Export singleton instance
-export const agentops = new AgentOps();
