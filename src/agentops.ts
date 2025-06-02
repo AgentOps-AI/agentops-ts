@@ -1,9 +1,8 @@
 import { NodeSDK as OpenTelemetryNodeSDK } from '@opentelemetry/sdk-node';
-import { Resource } from '@opentelemetry/resources';
-import { SEMRESATTRS_SERVICE_NAME, SEMRESATTRS_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 import { InstrumentationRegistry } from './instrumentation/registry';
 import { AgentOpsInstrumentationBase } from './instrumentation/base';
 import { AgentOpsConfig } from './types';
+import { createGlobalResourceAttributes } from './attributes';
 
 const packageInfo = require('../package.json');
 
@@ -39,14 +38,9 @@ class AgentOps {
       process.env.OTEL_EXPORTER_OTLP_ENDPOINT = this.config.endpoint;
     }
 
-    const instrumentations = this.createInstrumentations();
-
     this.sdk = new OpenTelemetryNodeSDK({
-      resource: new Resource({
-        [SEMRESATTRS_SERVICE_NAME]: this.config.serviceName!,
-        [SEMRESATTRS_SERVICE_VERSION]: '1.0.0',
-      }),
-      instrumentations,
+      resource: createGlobalResourceAttributes(this.config.serviceName!),
+      instrumentations: this.createInstrumentations(),
     });
 
     this.sdk.start();

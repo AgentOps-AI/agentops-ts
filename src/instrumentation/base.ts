@@ -5,6 +5,7 @@ import {
 import { Span, SpanKind, trace } from '@opentelemetry/api';
 import { InstrumentorMetadata, GenAISpanAttributes, AgentSpanAttributes } from '../types';
 import { InstrumentationConfig } from '@opentelemetry/instrumentation';
+import { OPERATION_TYPE, OPERATION_TYPE_CHAT_COMPLETION, OPERATION_TYPE_AGENT_EXECUTION } from '../semconv/operations';
 
 export class AgentOpsInstrumentationBase extends InstrumentationBase {
   static readonly metadata: InstrumentorMetadata = {
@@ -38,7 +39,7 @@ export class AgentOpsInstrumentationBase extends InstrumentationBase {
     return tracer.startSpan(operationName, {
       kind: SpanKind.CLIENT,
       attributes: {
-        'operation.type': 'gen_ai.completion',
+        [OPERATION_TYPE]: OPERATION_TYPE_CHAT_COMPLETION,
         ...attributes
       }
     });
@@ -53,7 +54,7 @@ export class AgentOpsInstrumentationBase extends InstrumentationBase {
     return tracer.startSpan(operationName, {
       kind: SpanKind.INTERNAL,
       attributes: {
-        'operation.type': 'agent.execution',
+        [OPERATION_TYPE]: OPERATION_TYPE_AGENT_EXECUTION,
         ...attributes
       }
     });
