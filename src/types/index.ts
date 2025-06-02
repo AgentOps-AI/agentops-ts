@@ -5,18 +5,10 @@ export interface AgentOpsInstrumentationConfig extends InstrumentationConfig {
 }
 
 export interface AgentOpsConfig {
-  endpoint?: string;
-  headers?: Record<string, string>;
+  apiEndpoint?: string;
+  otlpEndpoint?: string;
   serviceName?: string;
-  sampling?: {
-    rate?: number;
-    rules?: SamplingRule[];
-  };
-}
-
-export interface SamplingRule {
-  condition: (span: any) => boolean;
-  action: 'include' | 'exclude';
+  apiKey?: string;
 }
 
 export interface InstrumentorMetadata {

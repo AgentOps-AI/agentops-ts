@@ -1,6 +1,12 @@
 import { agentops } from '../src';
 
 async function main() {
+  // Set your API key via environment variable (preferred):
+  // export AGENTOPS_API_KEY=your-api-key
+  // 
+  // Or pass it explicitly in init():
+  // await agentops.init({ apiKey: 'your-api-key' });
+  
   await agentops.init();
 
   const openai = require('openai');
@@ -17,10 +23,8 @@ async function main() {
     console.log('Response:', response.choices[0].message.content);
   } catch (error) {
     console.error('Error:', error);
-  } finally {
-    // TODO do this automatically
-    await agentops.shutdown();
   }
+  // Shutdown happens automatically on process exit
 }
 
 if (require.main === module) {
