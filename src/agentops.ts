@@ -5,15 +5,12 @@ import { AgentOpsConfig } from './types';
 import { createGlobalResourceAttributes } from './attributes';
 import { AgentOpsAPI, TokenResponse, BearerToken } from './api';
 
-const packageInfo = require('../package.json');
-
 class AgentOps {
-  private sdk: OpenTelemetryNodeSDK | null = null;
-  public readonly registry: InstrumentationRegistry;
   private config: AgentOpsConfig;
+  public readonly registry: InstrumentationRegistry;
+  private sdk: OpenTelemetryNodeSDK | null = null;
   private api: AgentOpsAPI | null = null;
   private authToken: BearerToken | null = null;
-  public readonly instrumentations: AgentOpsInstrumentationBase[] = [];
 
   constructor() {
     this.registry = new InstrumentationRegistry();
@@ -32,12 +29,7 @@ class AgentOps {
     }
 
     // Merge user config with defaults
-    this.config = {
-      serviceName: config.serviceName ?? this.config.serviceName ?? 'agentops',
-      apiEndpoint: config.apiEndpoint ?? this.config.apiEndpoint,
-      otlpEndpoint: config.otlpEndpoint ?? this.config.otlpEndpoint,
-      apiKey: config.apiKey ?? this.config.apiKey,
-    };
+    this.config = { ...this.config, ...config };
 
     // Initialize API client
     if (!this.config.apiKey) {
@@ -52,7 +44,7 @@ class AgentOps {
 
     this.sdk = new OpenTelemetryNodeSDK({
       resource: createGlobalResourceAttributes(this.config.serviceName!),
-      instrumentations: this.createInstrumentations(),
+      instrumentations: this.registry.createAllInstrumentations(this.config.serviceName!),
     });
     this.sdk.start();
 
@@ -95,24 +87,6 @@ class AgentOps {
       this.shutdown();
       process.exit(1);
     });
-  }
-
-  private createInstrumentations(): AgentOpsInstrumentationBase[] {
-    // Clear previous instrumentations and enabled tracking
-    this.instrumentations.length = 0;
-    this.registry.clearEnabled();
-
-    const availableNames = this.registry.getAvailable();
-
-    for (const name of availableNames) {
-      const instrumentation = this.registry.createInstance(name, this.config.serviceName!, packageInfo.version);
-
-      if (instrumentation) {
-        this.instrumentations.push(instrumentation);
-      }
-    }
-
-    return this.instrumentations;
   }
 
   /**

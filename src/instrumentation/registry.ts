@@ -1,6 +1,7 @@
 import { AgentOpsInstrumentationBase } from './base';
 import { InstrumentorMetadata } from '../types';
 import { OpenAIInstrumentation } from './openai-instrumentation';
+import { getPackageVersion } from '../attributes';
 // Import other instrumentors here as they're added
 // import { LangChainInstrumentation } from './langchain-instrumentation';
 // import { AnthropicInstrumentation } from './anthropic-instrumentation';
@@ -65,6 +66,27 @@ export class InstrumentationRegistry {
       console.warn(`Failed to create instrumentor ${instrumentorName}:`, error);
       return null;
     }
+  }
+
+  /**
+   * Create all available instrumentations
+   */
+  createAllInstrumentations(serviceName: string): AgentOpsInstrumentationBase[] {
+    // Clear previous enabled tracking
+    this.enabledInstrumentors.clear();
+
+    const instrumentations: AgentOpsInstrumentationBase[] = [];
+    const availableNames = this.getAvailable();
+    const version = getPackageVersion();
+
+    for (const name of availableNames) {
+      const instrumentation = this.createInstance(name, serviceName, version);
+      if (instrumentation) {
+        instrumentations.push(instrumentation);
+      }
+    }
+
+    return instrumentations;
   }
 
 }
