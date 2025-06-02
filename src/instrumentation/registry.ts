@@ -1,92 +1,64 @@
-import { AgentOpsInstrumentationBase } from './base';
+import { InstrumentationBase } from './base';
+import { AVAILABLE_INSTRUMENTORS } from './index';
 import { InstrumentorMetadata } from '../types';
-import { OpenAIInstrumentation } from './openai-instrumentation';
 import { getPackageVersion } from '../attributes';
-// Import other instrumentors here as they're added
-// import { LangChainInstrumentation } from './langchain-instrumentation';
-// import { AnthropicInstrumentation } from './anthropic-instrumentation';
-
-// Module-level registry of all available instrumentors
-const AVAILABLE_INSTRUMENTORS: (typeof AgentOpsInstrumentationBase)[] = [
-  OpenAIInstrumentation,
-  // LangChainInstrumentation,
-  // AnthropicInstrumentation,
-];
 
 export class InstrumentationRegistry {
-  private instrumentors = new Map<string, typeof AgentOpsInstrumentationBase>();
+  private instrumentors = new Map<string, typeof InstrumentationBase>();
   private enabledInstrumentors = new Set<string>();
+  private readonly packageVersion: string;
 
   constructor() {
+    this.packageVersion = getPackageVersion();
     // Auto-register only available instrumentors
     for (const instrumentorClass of AVAILABLE_INSTRUMENTORS) {
-      if (instrumentorClass.isAvailable()) {
+      if (instrumentorClass.available) {
         this.register(instrumentorClass);
       }
     }
   }
 
-  register(instrumentorClass: typeof AgentOpsInstrumentationBase): void {
-    // Enforce that instrumentor classes have required metadata
-    const metadata = (instrumentorClass as any).metadata;
-
-    if (!metadata?.name || !metadata?.version || !metadata?.targetLibrary) {
-      throw new Error(`Instrumentor class must have static 'metadata' with name, version, and targetLibrary properties`);
-    }
-
-    this.instrumentors.set(metadata.targetLibrary, instrumentorClass);
+  register(instrumentorClass: typeof InstrumentationBase): void {
+    this.instrumentors.set(instrumentorClass.identifier, instrumentorClass);
   }
 
-  getAvailable(): string[] {
-    return Array.from(this.instrumentors.keys());
+  getAvailable(): (typeof InstrumentationBase)[] {
+    return Array.from(this.instrumentors.values());
   }
 
   getEnabled(): string[] {
     return Array.from(this.enabledInstrumentors);
   }
 
-  clearEnabled(): void {
-    this.enabledInstrumentors.clear();
-  }
-
-  createInstance(instrumentorName: string, packageName: string, packageVersion: string): AgentOpsInstrumentationBase | null {
-    const InstrumentorClass = this.instrumentors.get(instrumentorName);
-    if (!InstrumentorClass) {
-      return null;
-    }
-
+  private createInstance(instrumentorClass: typeof InstrumentationBase, packageName: string): InstrumentationBase | null {
     try {
-      const instance = new InstrumentorClass(packageName, packageVersion, {});
+      const instance = new (instrumentorClass as any)(packageName, this.packageVersion, {});
 
       // Mark as enabled when successfully created
-      this.enabledInstrumentors.add(instrumentorName);
+      this.enabledInstrumentors.add(instrumentorClass.identifier);
 
       return instance;
     } catch (error) {
-      console.warn(`Failed to create instrumentor ${instrumentorName}:`, error);
+      console.warn(`Failed to create instrumentor ${instrumentorClass.identifier}:`, error);
       return null;
     }
   }
 
   /**
-   * Create all available instrumentations
+   * Get active instrumentors
    */
-  createAllInstrumentations(serviceName: string): AgentOpsInstrumentationBase[] {
-    // Clear previous enabled tracking
-    this.enabledInstrumentors.clear();
+  getActiveInstrumentors(serviceName: string): InstrumentationBase[] {
+    const available: (typeof InstrumentationBase)[] = this.getAvailable();
+    const instrumentors: InstrumentationBase[] = [];
 
-    const instrumentations: AgentOpsInstrumentationBase[] = [];
-    const availableNames = this.getAvailable();
-    const version = getPackageVersion();
-
-    for (const name of availableNames) {
-      const instrumentation = this.createInstance(name, serviceName, version);
-      if (instrumentation) {
-        instrumentations.push(instrumentation);
+    for (const instrumentorClass of available) {
+      const instrumentor = this.createInstance(instrumentorClass, serviceName);
+      if (instrumentor) {
+        instrumentors.push(instrumentor);
       }
     }
 
-    return instrumentations;
+    return instrumentors;
   }
 
 }

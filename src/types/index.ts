@@ -50,3 +50,6 @@ export interface GenAIEventAttributes {
   'gen_ai.request.model': string;
   'gen_ai.response.model'?: string;
 }
+
+// Type for concrete instrumentor class constructors
+export type ConcreteInstrumentorConstructor<T = any> = new (instrumentationName: string, instrumentationVersion: string, config: any) => T;

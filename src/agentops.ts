@@ -1,6 +1,6 @@
 import { NodeSDK as OpenTelemetryNodeSDK } from '@opentelemetry/sdk-node';
 import { InstrumentationRegistry } from './instrumentation/registry';
-import { AgentOpsInstrumentationBase } from './instrumentation/base';
+import { InstrumentationBase } from './instrumentation/base';
 import { AgentOpsConfig } from './types';
 import { createGlobalResourceAttributes } from './attributes';
 import { AgentOpsAPI, TokenResponse, BearerToken } from './api';
@@ -44,7 +44,7 @@ class AgentOps {
 
     this.sdk = new OpenTelemetryNodeSDK({
       resource: createGlobalResourceAttributes(this.config.serviceName!),
-      instrumentations: this.registry.createAllInstrumentations(this.config.serviceName!),
+      instrumentations: this.registry.getActiveInstrumentors(this.config.serviceName!),
     });
     this.sdk.start();
 
