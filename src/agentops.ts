@@ -1,15 +1,15 @@
 import { NodeSDK as OpenTelemetryNodeSDK } from '@opentelemetry/sdk-node';
 import { InstrumentationRegistry } from './instrumentation/registry';
 import { InstrumentationBase } from './instrumentation/base';
-import { AgentOpsConfig } from './types';
+import { Config } from './types';
 import { createGlobalResourceAttributes } from './attributes';
-import { AgentOpsAPI, TokenResponse, BearerToken } from './api';
+import { API, TokenResponse, BearerToken } from './api';
 
 export class AgentOps {
-  private config: AgentOpsConfig;
+  private config: Config;
   public readonly registry: InstrumentationRegistry;
   private sdk: OpenTelemetryNodeSDK | null = null;
-  private api: AgentOpsAPI | null = null;
+  private api: API | null = null;
   private authToken: BearerToken | null = null;
 
   constructor() {
@@ -22,7 +22,7 @@ export class AgentOps {
     };
   }
 
-  async init(config: Partial<AgentOpsConfig> = {}): Promise<void> {
+  async init(config: Partial<Config> = {}): Promise<void> {
     if (this.initialized) {
       console.warn('AgentOps already initialized');
       return;
@@ -35,7 +35,7 @@ export class AgentOps {
     if (!this.config.apiKey) {
       throw new Error('API key is required. Set AGENTOPS_API_KEY environment variable or pass it in config.');
     }
-    this.api = new AgentOpsAPI(this.config.apiKey, this.config.apiEndpoint!);
+    this.api = new API(this.config.apiKey, this.config.apiEndpoint!);
 
     // Set authentication headers
     const bearerToken = await this.getBearerToken();

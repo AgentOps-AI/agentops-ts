@@ -1,10 +1,10 @@
-import { InstrumentationConfig } from '@opentelemetry/instrumentation';
+import { InstrumentationConfig as _InstrumentationConfig } from '@opentelemetry/instrumentation';
 
-export interface AgentOpsInstrumentationConfig extends InstrumentationConfig {
+export interface InstrumentationConfig extends _InstrumentationConfig {
   captureContent?: boolean;
 }
 
-export interface AgentOpsConfig {
+export interface Config {
   apiEndpoint?: string;
   otlpEndpoint?: string;
   serviceName?: string;

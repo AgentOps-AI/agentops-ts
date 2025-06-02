@@ -52,7 +52,7 @@ export class BearerToken {
   }
 }
 
-export class AgentOpsAPI {
+export class API {
   constructor(private apiKey: string, private endpoint: string) {}
 
   /**
