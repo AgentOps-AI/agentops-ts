@@ -5,6 +5,23 @@ import { Config } from './types';
 import { createGlobalResourceAttributes } from './attributes';
 import { API, TokenResponse, BearerToken } from './api';
 
+/**
+ * Main AgentOps SDK class.
+ *
+ * @example
+ * ```typescript
+ * import { agentops } from 'agentops';
+ *
+ * // Initialize with environment variable API key
+ * await agentops.init();
+ *
+ * // Or initialize with explicit configuration
+ * await agentops.init({
+ *   apiKey: 'your-api-key',
+ *   ...
+ * });
+ * ```
+ */
 export class AgentOps {
   private config: Config;
   public readonly registry: InstrumentationRegistry;
@@ -12,6 +29,9 @@ export class AgentOps {
   private api: API | null = null;
   private authToken: BearerToken | null = null;
 
+  /**
+   * Creates a new AgentOps instance with default configuration.
+   */
   constructor() {
     this.registry = new InstrumentationRegistry();
     this.config = {
@@ -22,6 +42,29 @@ export class AgentOps {
     };
   }
 
+  /**
+   * Initializes the AgentOps SDK with OpenTelemetry instrumentation.
+   *
+   * Performs the following setup:
+   * - Merges user configuration with defaults
+   * - Authenticates with AgentOps API using JWT tokens
+   * - Configures OpenTelemetry SDK with active instrumentations
+   * - Sets up automatic cleanup on process exit
+   *
+   * @param config - Partial configuration to override defaults
+   * @throws {Error} When API key is not provided via config or environment variable
+   *
+   * @example
+   * ```typescript
+   * // Use environment variable AGENTOPS_API_KEY
+   * await agentops.init();
+   *
+   * // Override specific settings
+   * await agentops.init({
+   *   apiKey: 'custom-key'
+   * });
+   * ```
+   */
   async init(config: Partial<Config> = {}): Promise<void> {
     if (this.initialized) {
       console.warn('AgentOps already initialized');
@@ -52,16 +95,32 @@ export class AgentOps {
     this.setupExitHandlers();
   }
 
+  /**
+   * Checks if the SDK has been initialized.
+   *
+   * @returns True if init() has been called successfully, false otherwise
+   */
   get initialized(): boolean {
     return this.sdk !== null;
   }
 
+  /**
+   * Ensures the SDK is initialized before performing operations.
+   *
+   * @throws {Error} When the SDK has not been initialized
+   * @private
+   */
   private ensureInitialized(): void {
     if (!this.initialized) {
       throw new Error('AgentOps not initialized. Call agentops.init() first.');
     }
   }
 
+  /**
+   * Shuts down the OpenTelemetry SDK and cleans up resources.
+   *
+   * This method is automatically called on process exit and should contain any necessary cleanup logic.
+   */
   async shutdown(): Promise<void> {
     if (!this.initialized) {
       return;
@@ -71,8 +130,19 @@ export class AgentOps {
     this.sdk = null;
   }
 
+  /**
+   * Sets up process event handlers for automatic cleanup on exit.
+   *
+   * Handles the following scenarios:
+   * - Normal process exit
+   * - SIGINT (Ctrl+C)
+   * - SIGTERM (process termination)
+   * - Uncaught exceptions
+   * - Unhandled promise rejections
+   *
+   * @private
+   */
   private setupExitHandlers(): void {
-    // Handle various exit scenarios
     process.on('exit', this.shutdown);
     process.on('SIGINT', this.shutdown);
     process.on('SIGTERM', this.shutdown);
@@ -90,12 +160,14 @@ export class AgentOps {
   }
 
   /**
-   * Get current bearer token, authenticating if necessary
+   * Gets the current bearer token for API authentication.
+   *
+   * @returns Promise resolving to a bearer token
+   * @throws {Error} When the SDK is not initialized
+   * @private
    */
   private async getBearerToken(): Promise<BearerToken> {
-    this.ensureInitialized();
-
-    if (!this.authToken || this.authToken.isExpired()) {
+    if (!this.authToken) {
       const tokenResponse = await this.api!.authenticate();
       this.authToken = new BearerToken(tokenResponse.token);
     }

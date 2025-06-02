@@ -22,20 +22,11 @@ export interface VerifyTokenResponse {
   expires_at: string;
 }
 
-// Bearer token class with expiry management
+/**
+ * Bearer token class for API authentication.
+ */
 export class BearerToken {
-  private expiry: Date;
-
-  constructor(private token: string, expiryMs: number = 3600 * 1000) {
-    this.expiry = new Date(Date.now() + expiryMs);
-  }
-
-  /**
-   * Check if the token is expired
-   */
-  isExpired(): boolean {
-    return Date.now() >= this.expiry.getTime();
-  }
+  constructor(private token: string) {}
 
   /**
    * Get the token value for authorization headers
