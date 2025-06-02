@@ -1,15 +1,43 @@
+import { Span, SpanKind, trace } from '@opentelemetry/api';
 import {
   InstrumentationBase as _InstrumentationBase,
-  InstrumentationNodeModuleDefinition
+  InstrumentationNodeModuleDefinition,
+  InstrumentationConfig
 } from '@opentelemetry/instrumentation';
-import { Span, SpanKind, trace } from '@opentelemetry/api';
-import { InstrumentorMetadata, GenAISpanAttributes, AgentSpanAttributes } from '../types';
-import { InstrumentationConfig } from '@opentelemetry/instrumentation';
-import { OPERATION_TYPE, OPERATION_TYPE_CHAT_COMPLETION, OPERATION_TYPE_AGENT_EXECUTION } from '../semconv/operations';
+import { InstrumentorMetadata } from '../types';
 
+/**
+ * Base class for all AgentOps instrumentations.
+ *
+ * Provides a simplified interface for creating OpenTelemetry instrumentations
+ * with automatic setup/teardown lifecycle management and metadata-driven configuration.
+ *
+ * @example
+ * ```typescript
+ * export class MyInstrumentation extends InstrumentationBase {
+ *   static readonly metadata: InstrumentorMetadata = {
+ *     name: 'my-instrumentation',
+ *     version: '1.0.0',
+ *     description: 'Instrumentation for My Library',
+ *     targetLibrary: 'my-library',
+ *     targetVersions: ['>=1.0.0']
+ *   };
+ *
+ *   protected setup(moduleExports: any): any {
+ *     // Apply instrumentation patches
+ *     return moduleExports;
+ *   }
+ * }
+ * ```
+ */
 export abstract class InstrumentationBase extends _InstrumentationBase {
   static readonly metadata: InstrumentorMetadata;
 
+  /**
+   * Initializes the instrumentation module definition using the static metadata.
+   *
+   * @returns The instrumentation node module definition with setup/teardown callbacks
+   */
   init(): InstrumentationNodeModuleDefinition | InstrumentationNodeModuleDefinition[] {
     const metadata = (this.constructor as typeof InstrumentationBase).metadata;
 
@@ -21,10 +49,20 @@ export abstract class InstrumentationBase extends _InstrumentationBase {
     );
   }
 
+  /**
+   * Gets the unique identifier for this instrumentation from its metadata.
+   *
+   * @returns The instrumentation name
+   */
   static get identifier(): string {
     return this.metadata.name;
   }
 
+  /**
+   * Checks if the target library for this instrumentation is available.
+   *
+   * @returns True if the target library can be resolved, false otherwise
+   */
   static get available(): boolean {
     try {
       require.resolve(this.metadata.targetLibrary);
@@ -34,16 +72,40 @@ export abstract class InstrumentationBase extends _InstrumentationBase {
     }
   }
 
+  /**
+   * Sets up instrumentation patches for the target module.
+   *
+   * Subclasses should override this method to apply their specific instrumentation logic.
+   *
+   * @param moduleExports - The module exports to instrument
+   * @param moduleVersion - Optional version of the module being instrumented
+   * @returns The potentially modified module exports
+   */
   protected setup(moduleExports: any, moduleVersion?: string): any {
-    // Subclasses should override this method to apply instrumentation patches
     return moduleExports;
   }
 
+  /**
+   * Removes instrumentation patches from the target module.
+   *
+   * Subclasses should override this method to clean up their instrumentation.
+   *
+   * @param moduleExports - The module exports to uninstrument
+   * @param moduleVersion - Optional version of the module being uninstrumented
+   * @returns The potentially modified module exports
+   */
   protected teardown(moduleExports: any, moduleVersion?: string): any {
-    // Subclasses should override this method to remove instrumentation patches
     return moduleExports;
   }
 
+  /**
+   * Creates a new OpenTelemetry span with the specified configuration.
+   *
+   * @param operationName - Name of the operation being traced
+   * @param attributes - Optional attributes to add to the span
+   * @param spanKind - Type of span (CLIENT, SERVER, INTERNAL, etc.)
+   * @returns The created span
+   */
   protected createSpan(
     operationName: string,
     attributes: Record<string, any> = {},

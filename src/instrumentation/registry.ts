@@ -1,13 +1,26 @@
-import { InstrumentationBase } from './base';
-import { AVAILABLE_INSTRUMENTORS } from './index';
 import { InstrumentorMetadata } from '../types';
 import { getPackageVersion } from '../attributes';
+import { AVAILABLE_INSTRUMENTORS } from './index';
+import { InstrumentationBase } from './base';
 
+
+/**
+ * Registry for managing instrumentation discovery, registration, and lifecycle.
+ *
+ * Automatically discovers available instrumentations, registers them if their target
+ * libraries are present, and provides methods to create and manage active instances.
+ */
 export class InstrumentationRegistry {
   private instrumentors = new Map<string, typeof InstrumentationBase>();
   private enabledInstrumentors = new Set<string>();
   private readonly packageVersion: string;
 
+  /**
+   * Creates a new instrumentation registry.
+   *
+   * Automatically discovers and registers all available instrumentations
+   * from the AVAILABLE_INSTRUMENTORS list.
+   */
   constructor() {
     this.packageVersion = getPackageVersion();
     // Auto-register only available instrumentors
@@ -18,18 +31,40 @@ export class InstrumentationRegistry {
     }
   }
 
+  /**
+   * Registers an instrumentation class in the registry.
+   *
+   * @param instrumentorClass - The instrumentation class to register
+   */
   register(instrumentorClass: typeof InstrumentationBase): void {
     this.instrumentors.set(instrumentorClass.identifier, instrumentorClass);
   }
 
+  /**
+   * Gets all available instrumentation classes.
+   *
+   * @returns Array of registered instrumentation class constructors
+   */
   getAvailable(): (typeof InstrumentationBase)[] {
     return Array.from(this.instrumentors.values());
   }
 
+  /**
+   * Gets the identifiers of successfully enabled instrumentations.
+   *
+   * @returns Array of instrumentation identifiers that were successfully created
+   */
   getEnabled(): string[] {
     return Array.from(this.enabledInstrumentors);
   }
 
+  /**
+   * Creates an instance of the specified instrumentation class.
+   *
+   * @param instrumentorClass - The instrumentation class to instantiate
+   * @param packageName - Name of the service/package being instrumented
+   * @returns The created instrumentation instance, or null if creation failed
+   */
   private createInstance(instrumentorClass: typeof InstrumentationBase, packageName: string): InstrumentationBase | null {
     try {
       const instance = new (instrumentorClass as any)(packageName, this.packageVersion, {});
@@ -45,7 +80,13 @@ export class InstrumentationRegistry {
   }
 
   /**
-   * Get active instrumentors
+   * Creates and returns all active instrumentations.
+   *
+   * Attempts to create instances of all registered instrumentations for the specified service.
+   * Only successfully created instances are included in the result.
+   *
+   * @param serviceName - Name of the service to create instrumentations for
+   * @returns Array of active instrumentation instances
    */
   getActiveInstrumentors(serviceName: string): InstrumentationBase[] {
     const available: (typeof InstrumentationBase)[] = this.getAvailable();
@@ -60,5 +101,4 @@ export class InstrumentationRegistry {
 
     return instrumentors;
   }
-
 }
