@@ -1,4 +1,4 @@
-import { AgentOps } from './agentops';
+import { Client } from './client';
 
-export const agentops = new AgentOps();
+export const agentops = new Client();
 export * from './types';

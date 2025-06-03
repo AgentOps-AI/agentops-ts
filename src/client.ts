@@ -7,7 +7,7 @@ import { createGlobalResourceAttributes } from './attributes';
 import { API, TokenResponse, BearerToken } from './api';
 
 /**
- * Main AgentOps SDK class.
+ * Main AgentOps SDK client class.
  *
  * @example
  * ```typescript
@@ -23,7 +23,7 @@ import { API, TokenResponse, BearerToken } from './api';
  * });
  * ```
  */
-export class AgentOps {
+export class Client {
   private config: Config;
   public readonly registry: InstrumentationRegistry;
   private sdk: OpenTelemetryNodeSDK;
@@ -32,7 +32,7 @@ export class AgentOps {
   private _initialized = false;
 
   /**
-   * Creates a new AgentOps instance with default configuration.
+   * Creates a new Client instance with default configuration.
    * Creates the SDK with instrumentations immediately to catch module loading.
    */
   constructor() {

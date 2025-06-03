@@ -1,17 +1,17 @@
 import '../mocks/opentelemetry';
-import { AgentOps } from '../../agentops';
+import { Client } from '../../client';
 
 // Mock fetch for API calls
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
-describe('AgentOps', () => {
-  let agentops: AgentOps;
+describe('Client', () => {
+  let agentops: Client;
 
   beforeEach(() => {
     // Clear environment variables
     delete process.env.AGENTOPS_API_KEY;
-    agentops = new AgentOps();
+    agentops = new Client();
     mockFetch.mockClear();
     jest.clearAllMocks();
   });
@@ -58,7 +58,7 @@ describe('AgentOps', () => {
     it('should initialize successfully with API key from environment', async () => {
       process.env.AGENTOPS_API_KEY = 'env-api-key';
       // Create new instance after setting env var
-      const envAgentOps = new AgentOps();
+      const envAgentOps = new Client();
       
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -85,7 +85,7 @@ describe('AgentOps', () => {
 
     it('should warn when already initialized', async () => {
       process.env.AGENTOPS_API_KEY = 'test-key';
-      const warnAgentOps = new AgentOps();
+      const warnAgentOps = new Client();
       
       mockFetch.mockResolvedValue({
         ok: true,
@@ -105,7 +105,7 @@ describe('AgentOps', () => {
   describe('shutdown', () => {
     it('should shutdown gracefully when initialized', async () => {
       process.env.AGENTOPS_API_KEY = 'test-key';
-      const shutdownAgentOps = new AgentOps();
+      const shutdownAgentOps = new Client();
       
       mockFetch.mockResolvedValueOnce({
         ok: true,
