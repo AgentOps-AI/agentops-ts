@@ -59,8 +59,19 @@ This will compile the TypeScript source code to JavaScript in the `dist/` direct
 
 The repository includes an OpenAI Agents example that demonstrates the SDK in action:
 
+1. First, create a `.env` file in the `examples/openai-agents-example` directory:
+
 ```bash
 cd examples/openai-agents-example
+cat > .env << EOF
+AGENTOPS_API_KEY=your-agentops-api-key
+OPENAI_API_KEY=your-openai-api-key
+EOF
+```
+
+2. Then run the example:
+
+```bash
 npm install
 npm run dev
 ```
