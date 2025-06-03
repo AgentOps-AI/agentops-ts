@@ -142,7 +142,7 @@ export abstract class InstrumentationBase extends _InstrumentationBase {
    * @param spanKind - Type of span (CLIENT, SERVER, INTERNAL, etc.)
    * @returns The created span
    */
-  protected createSpan(
+  public createSpan(
     operationName: string,
     attributes: Record<string, any> = {},
     spanKind: SpanKind = SpanKind.CLIENT

@@ -8,10 +8,7 @@ export const OPERATION_TYPE = 'operation.type';
 export const OPERATION_NAME = 'operation.name';
 export const OPERATION_ID = 'operation.id';
 
-// Operation timing
-export const OPERATION_DURATION_MS = 'operation.duration.ms';
-export const OPERATION_START_TIME = 'operation.start_time';
-export const OPERATION_END_TIME = 'operation.end_time';
+// Operation timing - handled by OpenTelemetry spans, not attributes
 
 // Operation status
 export const OPERATION_STATUS = 'operation.status';

@@ -21,6 +21,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@openai/agents": "^0.0.1",
     "@opentelemetry/api": "^1.8.0",
     "@opentelemetry/exporter-collector": "^0.25.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.202.0",

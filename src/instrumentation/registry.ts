@@ -12,7 +12,7 @@ import { InstrumentationBase } from './base';
  */
 export class InstrumentationRegistry {
   private instrumentors = new Map<string, typeof InstrumentationBase>();
-  private enabledInstrumentors = new Set<string>();
+  private enabledInstrumentors = new Map<string, InstrumentationBase>();
   private readonly packageVersion: string;
 
   /**
@@ -34,11 +34,12 @@ export class InstrumentationRegistry {
       if (instrumentorClass.available) {
         this.register(instrumentorClass);
 
-        // For instrumentors using runtime targeting, trigger setup immediately
+        // For instrumentors using runtime targeting, create instance and trigger setup immediately
         if (instrumentorClass.useRuntimeTargeting) {
-          // TODO don't hardcode package name.
-          const instance = new (instrumentorClass as any)('agentops', this.packageVersion, {});
-          instance.setupRuntimeTargeting();
+          const instance = this.createInstance(instrumentorClass, 'agentops');
+          if (instance) {
+            instance.setupRuntimeTargeting();
+          }
         }
       }
     }
@@ -69,7 +70,7 @@ export class InstrumentationRegistry {
    * @returns Array of instrumentation identifiers that were successfully created
    */
   getEnabled(): string[] {
-    return Array.from(this.enabledInstrumentors);
+    return Array.from(this.enabledInstrumentors.keys());
   }
 
   /**
@@ -79,15 +80,21 @@ export class InstrumentationRegistry {
    * @param packageName - Name of the service/package being instrumented
    * @returns The created instrumentation instance, or null if creation failed
    */
-  private createInstance(instrumentorClass: typeof InstrumentationBase, packageName: string): InstrumentationBase | null {
+  private createInstance(instrumentorClass: typeof InstrumentationBase, packageName: string): InstrumentationBase | undefined {
+    // Check if instance already exists
+    const existingInstance = this.enabledInstrumentors.get(instrumentorClass.identifier);
+    if (existingInstance) {
+      return existingInstance;
+    }
+
     try {
       const instance = new (instrumentorClass as any)(packageName, this.packageVersion, {});
-      this.enabledInstrumentors.add(instrumentorClass.identifier);
+      this.enabledInstrumentors.set(instrumentorClass.identifier, instance);
       console.debug(`[agentops.registry] instantiated ${instrumentorClass.identifier}`);
       return instance;
     } catch (error) {
       console.warn(`[agentops.registry] Failed to create instrumentor ${instrumentorClass.identifier}:`, error);
-      return null;
+      return undefined;
     }
   }
 
@@ -105,7 +112,12 @@ export class InstrumentationRegistry {
     const instrumentors: InstrumentationBase[] = [];
 
     for (const instrumentorClass of available) {
-      const instrumentor = this.createInstance(instrumentorClass, serviceName);
+      // Check if already enabled, otherwise create new instance
+      let instrumentor = this.enabledInstrumentors.get(instrumentorClass.identifier);
+      if (!instrumentor && instrumentorClass.available) {
+        instrumentor = this.createInstance(instrumentorClass, serviceName);
+      }
+      
       if (instrumentor) {
         instrumentors.push(instrumentor);
       }
