@@ -1,7 +1,8 @@
 import { NodeSDK as OpenTelemetryNodeSDK } from '@opentelemetry/sdk-node';
+import { diag, DiagConsoleLogger, DiagLogLevel } from '@opentelemetry/api';
 import { InstrumentationRegistry } from './instrumentation/registry';
 import { InstrumentationBase } from './instrumentation/base';
-import { Config } from './types';
+import { Config, LogLevel } from './types';
 import { createGlobalResourceAttributes } from './attributes';
 import { API, TokenResponse, BearerToken } from './api';
 
@@ -25,21 +26,31 @@ import { API, TokenResponse, BearerToken } from './api';
 export class AgentOps {
   private config: Config;
   public readonly registry: InstrumentationRegistry;
-  private sdk: OpenTelemetryNodeSDK | null = null;
+  private sdk: OpenTelemetryNodeSDK;
   private api: API | null = null;
   private authToken: BearerToken | null = null;
+  private _initialized = false;
 
   /**
    * Creates a new AgentOps instance with default configuration.
+   * Creates the SDK with instrumentations immediately to catch module loading.
    */
   constructor() {
-    this.registry = new InstrumentationRegistry();
     this.config = {
       serviceName: 'agentops',
       apiEndpoint: 'https://api.agentops.ai',
-      otlpEndpoint: 'https://otlp.agentops.ai/v1/traces',
-      apiKey: process.env.AGENTOPS_API_KEY
+      otlpEndpoint: 'https://otlp.agentops.ai',
+      apiKey: process.env.AGENTOPS_API_KEY,
+      logLevel: (process.env.AGENTOPS_LOG_LEVEL as LogLevel) || 'error'
     };
+    this.registry = new InstrumentationRegistry();
+    this.configureLogging();
+
+    // Create SDK with instrumentations early to catch module loading
+    this.sdk = new OpenTelemetryNodeSDK({
+      resource: createGlobalResourceAttributes(this.config.serviceName!),
+      instrumentations: this.registry.getActiveInstrumentors(this.config.serviceName!),
+    });
   }
 
   /**
@@ -74,6 +85,9 @@ export class AgentOps {
     // Merge user config with defaults
     this.config = { ...this.config, ...config };
 
+    // Configure logging based on final log level
+    this.configureLogging();
+
     // Initialize API client
     if (!this.config.apiKey) {
       throw new Error('API key is required. Set AGENTOPS_API_KEY environment variable or pass it in config.');
@@ -85,14 +99,18 @@ export class AgentOps {
     process.env.OTEL_EXPORTER_OTLP_HEADERS = `authorization=${bearerToken.getAuthHeader()}`;
     process.env.OTEL_EXPORTER_OTLP_ENDPOINT = this.config.otlpEndpoint;
 
-    this.sdk = new OpenTelemetryNodeSDK({
-      resource: createGlobalResourceAttributes(this.config.serviceName!),
-      instrumentations: this.registry.getActiveInstrumentors(this.config.serviceName!),
-    });
+    // Configure batch span processor for faster exports during development
+    // process.env.OTEL_BSP_SCHEDULE_DELAY = '1000';  // Export every 1 second
+    process.env.OTEL_BSP_MAX_EXPORT_BATCH_SIZE = '1';  // Export in smaller batches
+    // process.env.OTEL_BSP_EXPORT_TIMEOUT = '5000';  // 5 second timeout
+
+    // Start the SDK (it was created in constructor)
     this.sdk.start();
 
     // Setup process exit handlers
     this.setupExitHandlers();
+    this._initialized = true;
+    console.debug('[agentops] initialized');
   }
 
   /**
@@ -101,7 +119,7 @@ export class AgentOps {
    * @returns True if init() has been called successfully, false otherwise
    */
   get initialized(): boolean {
-    return this.sdk !== null;
+    return this._initialized;
   }
 
   /**
@@ -126,8 +144,9 @@ export class AgentOps {
       return;
     }
 
-    await this.sdk!.shutdown();
-    this.sdk = null;
+    await this.sdk.shutdown();
+    this._initialized = false;
+    console.debug('[agentops] shutdown');
   }
 
   /**
@@ -173,6 +192,24 @@ export class AgentOps {
     }
 
     return this.authToken;
+  }
+
+  /**
+   * Configures OpenTelemetry diagnostic logging and console.debug visibility based on the current log level.
+   */
+  private configureLogging(): void {
+    const logLevel = this.config.logLevel!;
+    const levelMap: Record<LogLevel, DiagLogLevel> = {
+      debug: DiagLogLevel.DEBUG,
+      info: DiagLogLevel.INFO,
+      error: DiagLogLevel.ERROR
+    };
+    const diagLevel = levelMap[logLevel] || DiagLogLevel.ERROR;
+
+    diag.setLogger(new DiagConsoleLogger(), diagLevel);
+    if (logLevel === 'debug') {
+      console.debug = console.log;
+    }
   }
 }
 

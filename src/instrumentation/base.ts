@@ -75,6 +75,11 @@ export abstract class InstrumentationBase extends _InstrumentationBase {
   /**
    * Sets up instrumentation patches for the target module.
    *
+   * NOTE: This method is only called automatically when the target library is 
+   * actually require()'d or import'ed by the application. OpenTelemetry uses 
+   * module hooking to detect when modules are loaded and applies patches at 
+   * that time, not during instrumentation registration.
+   *
    * Subclasses should override this method to apply their specific instrumentation logic.
    *
    * @param moduleExports - The module exports to instrument

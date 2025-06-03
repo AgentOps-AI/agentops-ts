@@ -1,0 +1,13 @@
+{
+  "name": "agentops-test-lib",
+  "version": "1.0.0",
+  "description": "Test library for AgentOps instrumentation testing",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

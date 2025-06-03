@@ -4,11 +4,14 @@ export interface InstrumentationConfig extends _InstrumentationConfig {
   captureContent?: boolean;
 }
 
+export type LogLevel = 'debug' | 'info' | 'error';
+
 export interface Config {
   apiEndpoint?: string;
   otlpEndpoint?: string;
   serviceName?: string;
   apiKey?: string;
+  logLevel?: LogLevel;
 }
 
 export interface InstrumentorMetadata {

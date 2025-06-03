@@ -47,21 +47,32 @@ export class API {
   constructor(private apiKey: string, private endpoint: string) {}
 
   /**
-   * Authenticate with API key and get bearer token
+   * Private method to make JSON API requests
    */
-  async authenticate(): Promise<TokenResponse> {
-    const response = await fetch(`${this.endpoint}/v3/auth/token`, {
-      method: 'POST',
+  private async fetch<T>(path: string, method: 'GET' | 'POST', body?: any): Promise<T> {
+    const url = `${this.endpoint}${path}`;
+    console.debug(`[agentops.api] ${method} ${url}`);
+
+    const response = await fetch(url, {
+      method: method,
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ api_key: this.apiKey })
+      body: body ? JSON.stringify(body) : undefined
     });
-    
+
     if (!response.ok) {
-      throw new Error(`Authentication failed: ${response.status} ${response.statusText}`);
+      throw new Error(`Request failed: ${response.status} ${response.statusText}`);
     }
-    
-    return await response.json() as TokenResponse;
+
+    console.debug(`[agentops.api] ${response.status}`);
+    return await response.json() as T;
+  }
+
+  /**
+   * Authenticate with API key and get bearer token
+   */
+  async authenticate(): Promise<TokenResponse> {
+    return this.fetch<TokenResponse>('/v3/auth/token', 'POST', { api_key: this.apiKey });
   }
 }

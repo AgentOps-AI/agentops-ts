@@ -1,12 +1,7 @@
 import { InstrumentationBase } from './base';
-import { OpenAIInstrumentation } from './openai-instrumentation';
-// Import other instrumentors here as they're added
-// import { LangChainInstrumentation } from './langchain-instrumentation';
-// import { AnthropicInstrumentation } from './anthropic-instrumentation';
+import { TestInstrumentation } from './test-instrumentation';
 
-// Module-level registry of all available instrumentors
+// registry of all available instrumentors
 export const AVAILABLE_INSTRUMENTORS: (typeof InstrumentationBase)[] = [
-  OpenAIInstrumentation,
-  // LangChainInstrumentation,
-  // AnthropicInstrumentation,
+  TestInstrumentation,
 ];

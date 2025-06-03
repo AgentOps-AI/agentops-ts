@@ -38,6 +38,7 @@ export class InstrumentationRegistry {
    */
   register(instrumentorClass: typeof InstrumentationBase): void {
     this.instrumentors.set(instrumentorClass.identifier, instrumentorClass);
+    console.debug(`[agentops.registry] registered ${instrumentorClass.identifier}`);
   }
 
   /**
@@ -68,13 +69,11 @@ export class InstrumentationRegistry {
   private createInstance(instrumentorClass: typeof InstrumentationBase, packageName: string): InstrumentationBase | null {
     try {
       const instance = new (instrumentorClass as any)(packageName, this.packageVersion, {});
-
-      // Mark as enabled when successfully created
       this.enabledInstrumentors.add(instrumentorClass.identifier);
-
+      console.debug(`[agentops.registry] instantiated ${instrumentorClass.identifier}`);
       return instance;
     } catch (error) {
-      console.warn(`Failed to create instrumentor ${instrumentorClass.identifier}:`, error);
+      console.warn(`[agentops.registry] Failed to create instrumentor ${instrumentorClass.identifier}:`, error);
       return null;
     }
   }
