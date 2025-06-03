@@ -44,6 +44,34 @@ await agentops.init({
 });
 ```
 
+## Building
+
+To build the project from source:
+
+```bash
+npm install
+npm run build
+```
+
+This will compile the TypeScript source code to JavaScript in the `dist/` directory.
+
+## Running the Example
+
+The repository includes an OpenAI Agents example that demonstrates the SDK in action:
+
+```bash
+cd examples/openai-agents-example
+npm install
+npm run dev
+```
+
+The example will:
+1. Initialize AgentOps instrumentation
+2. Create a weather assistant agent with tool calling capabilities
+3. Execute a sample query
+4. Export telemetry data to the AgentOps platform
+
+
 ## Creating Custom Instrumentors
 
 Extend the `InstrumentationBase` class to create framework-specific instrumentors:
@@ -73,13 +101,3 @@ export class MyFrameworkInstrumentation extends InstrumentationBase {
 }
 ```
 
-## Semantic Conventions
-
-The SDK uses centralized semantic conventions organized by data type:
-
-- **Resource**: `src/semconv/resource.ts` - Service and deployment attributes
-- **Operations**: `src/semconv/operations.ts` - Operation lifecycle and flow
-- **Model**: `src/semconv/model.ts` - AI model identification and config
-- **Messages**: `src/semconv/messages.ts` - Chat messages and completions
-- **Tools**: `src/semconv/tools.ts` - Tool calls and function invocations
-- **Agents**: `src/semconv/agents.ts` - Agent behavior and state
