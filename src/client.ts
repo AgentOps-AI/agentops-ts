@@ -44,7 +44,6 @@ export class Client {
       logLevel: (process.env.AGENTOPS_LOG_LEVEL as LogLevel) || 'error'
     };
     this.registry = new InstrumentationRegistry();
-    this.configureLogging();
 
     // Create SDK with instrumentations early to catch module loading
     this.sdk = new OpenTelemetryNodeSDK({
