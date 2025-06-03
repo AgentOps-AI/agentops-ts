@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { Agent, run, tool } from 'openai-agents';
+import { Agent, run, tool } from '@openai/agents';
 import { agentops } from 'agentops';
 import { z } from 'zod';
 
@@ -75,26 +75,9 @@ async function main() {
     // Initialize AgentOps
     await agentops.init();
 
-    console.log('\n🤖 Starting weather agent conversation...\n');
-
-    // Example 1: Basic weather query
     console.log('Query 1: "What\'s the weather in Tokyo?"');
-    const result1 = await run(weatherAgent, "What's the weather in Tokyo?");
-    console.log('Response:', result1.finalOutput);
-    console.log('---\n');
-
-    // Example 2: Weather comparison
-    console.log('Query 2: "Compare the weather in London and New York"');
-    const result2 = await run(weatherAgent, "Compare the weather in London and New York");
-    console.log('Response:', result2.finalOutput);
-    console.log('---\n');
-
-    // Example 3: Weather with specific units
-    console.log('Query 3: "What\'s the weather in Tokyo in Fahrenheit?"');
-    const result3 = await run(weatherAgent, "What's the weather in Tokyo in Fahrenheit?");
-    console.log('Response:', result3.finalOutput);
-
-    console.log('\n✅ All queries completed successfully!');
+    const result = await run(weatherAgent, "What's the weather in Tokyo?");
+    console.log('Response:', result.finalOutput);
 
   } catch (error) {
     console.error('❌ Error during execution:', error);
