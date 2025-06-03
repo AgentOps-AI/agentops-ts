@@ -1,7 +1,3 @@
-/**
- * API client for AgentOps authentication and communication
- * Based on AgentOps v3/auth/token OpenAPI specification
- */
 
 // Request schema for /v3/auth/token endpoint
 export interface TokenSchema {
@@ -22,32 +18,41 @@ export interface VerifyTokenResponse {
   expires_at: string;
 }
 
-/**
- * Bearer token class for API authentication.
- */
 export class BearerToken {
   constructor(private token: string) {}
 
-  /**
-   * Get the token value for authorization headers
-   */
   getToken(): string {
     return this.token;
   }
 
-  /**
-   * Get the authorization header value
-   */
   getAuthHeader(): string {
     return `Bearer ${this.token}`;
   }
 }
 
 export class API {
+  /**
+   * Creates a new API client instance.
+   *
+   * @param apiKey - The API key for authentication
+   * @param endpoint - The base endpoint URL for the API
+   */
   constructor(private apiKey: string, private endpoint: string) {}
 
   /**
-   * Private method to make JSON API requests
+   * Get the user agent string for API requests
+   */
+  private get userAgent(): string {
+    return `agentops-ts-sdk/${process.env.npm_package_version || 'unknown'}`;
+  }
+
+  /**
+   * Fetch data from the API using the specified path and method.
+   *
+   * @param path - The API endpoint path
+   * @param method - The HTTP method to use (GET or POST)
+   * @param body - The request body for POST requests
+   * @returns The parsed JSON response
    */
   private async fetch<T>(path: string, method: 'GET' | 'POST', body?: any): Promise<T> {
     const url = `${this.endpoint}${path}`;
@@ -56,6 +61,7 @@ export class API {
     const response = await fetch(url, {
       method: method,
       headers: {
+        'User-Agent': this.userAgent,
         'Content-Type': 'application/json',
       },
       body: body ? JSON.stringify(body) : undefined
@@ -70,7 +76,9 @@ export class API {
   }
 
   /**
-   * Authenticate with API key and get bearer token
+   * Authenticate with the AgentOps API using the provided API key.
+   *
+   * @returns A promise that resolves to a TokenResponse containing the authentication token
    */
   async authenticate(): Promise<TokenResponse> {
     return this.fetch<TokenResponse>('/v3/auth/token', 'POST', { api_key: this.apiKey });
