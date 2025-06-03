@@ -135,24 +135,12 @@ export abstract class InstrumentationBase extends _InstrumentationBase {
   }
 
   /**
-   * Creates a new OpenTelemetry span with the specified configuration.
+   * Gets the OpenTelemetry tracer for this instrumentation.
    *
-   * @param operationName - Name of the operation being traced
-   * @param attributes - Optional attributes to add to the span
-   * @param spanKind - Type of span (CLIENT, SERVER, INTERNAL, etc.)
-   * @returns The created span
+   * @returns The tracer instance
    */
-  public createSpan(
-    operationName: string,
-    attributes: Record<string, any> = {},
-    spanKind: SpanKind = SpanKind.CLIENT
-  ): Span {
-    const tracer = trace.getTracer(this.instrumentationName, this.instrumentationVersion);
-
-    return tracer.startSpan(operationName, {
-      kind: spanKind,
-      attributes
-    });
+  public get tracer() {
+    return trace.getTracer(this.instrumentationName, this.instrumentationVersion);
   }
 
   /**

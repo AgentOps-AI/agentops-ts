@@ -1,206 +1,97 @@
-import type { TracingExporter, Trace, Span } from '@openai/agents';
+import { trace, context, SpanStatusCode, SpanKind, Span, ROOT_CONTEXT } from '@opentelemetry/api';
+import type { TracingExporter, Trace as OpenAITrace, Span as OpenAISpan } from '@openai/agents';
 import type { SpanData, GenerationSpanData } from '@openai/agents-core/dist/tracing/spans';
-import { trace, context, SpanStatusCode, SpanKind } from '@opentelemetry/api';
-
-import { convertGenerationSpan } from './generation-converter';
 import { InstrumentationBase } from '../base';
+import { getSpanAttributes, getSpanName, getSpanKind } from './attributes';
 
-// Import semantic conventions
-import {
-  OPERATION_TYPE,
-  OPERATION_NAME,
-  OPERATION_ID,
-  OPERATION_STATUS,
-  OPERATION_PARENT_ID
-} from '../../semconv/operations';
 
-import { ERROR_MESSAGE } from '../../semconv/common';
-
-/**
- * OpenAI Agents TracingExporter that converts spans to OpenTelemetry semantic conventions
- */
 export class OpenAIAgentsTracingExporter implements TracingExporter {
   private readonly instrumentation: InstrumentationBase;
+  private readonly traceMap = new Map<string, Span>(); // OpenAI Agents trace ID -> root OpenTelemetry span
+  private readonly spanMap = new Map<string, Span>(); // OpenAI Agents span ID -> OpenTelemetry span
 
+  /**
+   * Creates a new OpenAIAgentsTracingExporter instance.
+   * @param instrumentation The instrumentation base to use for exporting spans.
+   */
   constructor(instrumentation: InstrumentationBase) {
     this.instrumentation = instrumentation;
   }
-  async export(items: (Trace | Span<any>)[]): Promise<void> {
+
+  /**
+   * Exports OpenAI Agents traces and spans to OpenTelemetry spans.
+   * @param items The items to export, which can be either traces or spans.
+   */
+  async export(items: (OpenAITrace | OpenAISpan<any>)[]): Promise<void> {
     for (const item of items) {
       if (item.type === 'trace') {
-        this.handleTrace(item as Trace);
+        this.handleTrace(item as OpenAITrace);
       } else if (item.type === 'trace.span') {
-        this.handleSpan(item as Span<any>);
+        this.handleSpan(item as OpenAISpan<any>);
       }
     }
   }
 
-  private handleTrace(trace: Trace): void {
-    console.log(`[AgentOps] 🔍 Trace: ${trace.name} (${trace.traceId})`);
-    
-    const attributes: Record<string, any> = {
-      [OPERATION_NAME]: trace.name,
-      [OPERATION_ID]: trace.traceId,
-      [OPERATION_TYPE]: 'trace'
-    };
+  /**
+   * Handles an OpenAI Agents trace, converting it to an OpenTelemetry span.
+   * @param item The OpenAI Agents trace to handle.
+   * This creates a root span for the trace, which can be used to link child spans.
+   * The trace ID is stored in a map for later reference when handling spans.
+   * The span is ended immediately, as it is only a root span without any child spans.
+   */
+  private handleTrace(item: OpenAITrace): void {
+    const attributes: Record<string, any> = {};
 
-    if (trace.groupId) {
-      attributes['trace.group_id'] = trace.groupId;
-    }
+    const span = this.instrumentation.tracer.startSpan(item.name, {
+      kind: SpanKind.INTERNAL,
+      attributes
+    });
 
-    if (trace.metadata && Object.keys(trace.metadata).length > 0) {
-      attributes['trace.metadata'] = trace.metadata;
-    }
+    const traceId = span.spanContext().traceId;
+    this.traceMap.set(item.traceId, span);
 
-    // Create OpenTelemetry span for the trace
-    const span = this.instrumentation.createSpan(trace.name, attributes, SpanKind.INTERNAL);
-
-    // End the span immediately since we're processing a completed trace
     span.end();
-    console.log(`  Attributes:`, attributes);
   }
 
-  private handleSpan(span: Span<any>): void {
-    const spanData = span.spanData;
-    
-    console.log(`[AgentOps] 📊 Converting span: ${this.getSpanName(spanData)} (${span.spanId})`);
+  /**
+   * Handles an OpenAI Agents span, converting it to an OpenTelemetry span.
+   * @param item The OpenAI Agents span to handle.
+   * This retrieves the attributes and name for the span, creates a new OpenTelemetry span,
+   * and sets its parent context to the root span of the trace.
+   * If the span has an error, it records the exception and sets the status to ERROR.
+   * If the span does not have an error, it sets the status to OK.
+   * The span is ended with the provided end time or the current time if not specified.
+   * The span is stored in a map for later reference.
+   */
+  private handleSpan(item: OpenAISpan<any>): void {
+    const attributes = getSpanAttributes(item);
+    const spanName = getSpanName(item.spanData);
 
-    // Convert span data to semantic conventions based on type
-    const attributes = this.convertSpanToSemanticConventions(span);
+    const rootSpan = this.traceMap.get(item.traceId);
+    const mappedTraceId = rootSpan?.spanContext().traceId;
+    const parentContext = rootSpan ? trace.setSpan(ROOT_CONTEXT, rootSpan) : ROOT_CONTEXT;
 
-    // Create OpenTelemetry span
-    const spanName = this.getSpanName(spanData);
-    const spanKind = this.getSpanKind(spanData.type);
-    
-    console.log(`[AgentOps] Creating OTel span: ${spanName}`);
-    const otelSpan = this.instrumentation.createSpan(spanName, attributes, spanKind);
-    console.log(`[AgentOps] OTel span created with ID: ${otelSpan.spanContext().spanId}`);
-    // Set the start time if available
-    if (span.startedAt) {
-      // Note: createSpan doesn't support startTime, so we'll use the current implementation
-      // This is a limitation we might need to address in the base class
-    }
-    // Set error status if present
-    if (span.error) {
-      otelSpan.recordException(span.error.message);
-      otelSpan.setStatus({
+    const span = this.instrumentation.tracer.startSpan(spanName, {
+      kind: getSpanKind(item.spanData.type),
+      attributes,
+      startTime: item.startedAt ? new Date(item.startedAt) : undefined
+    }, parentContext);
+
+    this.spanMap.set(item.spanId, span);
+
+    if (item.error) {
+      span.recordException(item.error.message);
+      span.setStatus({
         code: SpanStatusCode.ERROR,
-        message: span.error.message
+        message: item.error.message
       });
     } else {
-      otelSpan.setStatus({ code: SpanStatusCode.OK });
+      span.setStatus({
+        code: SpanStatusCode.OK
+      });
     }
 
-    // End the span
-    otelSpan.end(span.endedAt ? new Date(span.endedAt) : undefined);
-
-    if (span.startedAt && span.endedAt) {
-      const duration = new Date(span.endedAt).getTime() - new Date(span.startedAt).getTime();
-      console.log(`  Duration: ${duration}ms`);
-    }
-  }
-
-  private getSpanName(spanData: SpanData): string {
-    if ('name' in spanData && spanData.name) {
-      return spanData.name;
-    }
-    return this.getSpanTypeLabel(spanData.type);
-  }
-
-  private getSpanTypeLabel(type: string): string {
-    const typeLabels: Record<string, string> = {
-      'agent': 'Agent',
-      'function': 'Function',
-      'generation': 'Generation',
-      'response': 'Response',
-      'handoff': 'Handoff',
-      'custom': 'Custom',
-      'guardrail': 'Guardrail',
-      'transcription': 'Transcription',
-      'speech': 'Speech',
-      'speech_group': 'Speech Group',
-      'mcp_tools': 'MCP List Tools',
-    };
-    return typeLabels[type] || type;
-  }
-
-  private getSpanKind(type: string): SpanKind {
-    switch (type) {
-      case 'generation':
-        return SpanKind.CLIENT; // LLM calls are client calls
-      case 'function':
-        return SpanKind.INTERNAL; // Tool/function calls are internal
-      case 'agent':
-        return SpanKind.INTERNAL; // Agent execution is internal
-      case 'response':
-        return SpanKind.INTERNAL; // Response processing is internal
-      case 'handoff':
-        return SpanKind.INTERNAL; // Agent handoffs are internal
-      case 'guardrail':
-        return SpanKind.INTERNAL; // Guardrail checks are internal
-      case 'transcription':
-      case 'speech':
-        return SpanKind.CLIENT; // Audio API calls are client calls
-      default:
-        return SpanKind.INTERNAL; // Default to internal
-    }
-  }
-
-  private convertSpanToSemanticConventions(span: Span<any>): Record<string, any> {
-    const spanData = span.spanData;
-    
-    // Base attributes for all spans using semantic conventions
-    const baseAttributes: Record<string, any> = {
-      [OPERATION_TYPE]: spanData.type,
-      [OPERATION_ID]: span.spanId,
-      'trace.id': span.traceId,
-    };
-
-    if (span.parentId) {
-      baseAttributes[OPERATION_PARENT_ID] = span.parentId;
-    }
-
-
-    // Add operation name based on span data
-    if ('name' in spanData && spanData.name) {
-      baseAttributes[OPERATION_NAME] = spanData.name;
-    } else {
-      baseAttributes[OPERATION_NAME] = this.getSpanTypeLabel(spanData.type);
-    }
-
-    // Add error information if present
-    if (span.error) {
-      baseAttributes[ERROR_MESSAGE] = span.error.message;
-      baseAttributes[OPERATION_STATUS] = 'error';
-    } else {
-      baseAttributes[OPERATION_STATUS] = 'ok';
-    }
-
-    // Type-specific attribute conversion
-    let typeSpecificAttributes: Record<string, any> = {};
-
-    switch (spanData.type) {
-      case 'generation':
-        typeSpecificAttributes = convertGenerationSpan(spanData as GenerationSpanData);
-        break;
-      
-      // TODO: Add other span type converters
-      case 'agent':
-      case 'function':
-      case 'response':
-      case 'handoff':
-      case 'custom':
-      case 'guardrail':
-      case 'transcription':
-      case 'speech':
-      case 'speech_group':
-      case 'mcp_tools':
-      default:
-        // For now, just include the raw span data
-        typeSpecificAttributes = { 'span.raw_data': spanData };
-        break;
-    }
-
-    return { ...baseAttributes, ...typeSpecificAttributes };
+    // TODO this might be better as a conditional so end doesn't get called early.
+    span.end(item.endedAt ? new Date(item.endedAt) : undefined);
   }
 }

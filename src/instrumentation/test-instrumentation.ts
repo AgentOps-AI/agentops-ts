@@ -34,7 +34,10 @@ export class TestInstrumentation extends InstrumentationBase {
       };
       console.log('[test-instrumentation] Creating span with attributes:', initialAttributes);
 
-      const span = this.createSpan('test_completion', initialAttributes, SpanKind.CLIENT);
+      const span = this.tracer.startSpan('test_completion', {
+        kind: SpanKind.CLIENT,
+        attributes: initialAttributes
+      });
 
       try {
         const result = originalCreateCompletion.call(this, prompt, options);
