@@ -84,31 +84,28 @@ export class Client {
 
     // Merge user config with defaults
     this.config = { ...this.config, ...config };
-
-    // Configure logging based on final log level
     this.configureLogging();
 
-    // Initialize API client
     if (!this.config.apiKey) {
       throw new Error('API key is required. Set AGENTOPS_API_KEY environment variable or pass it in config.');
     }
     this.api = new API(this.config.apiKey, this.config.apiEndpoint!);
 
-    // Set authentication headers
     const bearerToken = await this.getBearerToken();
     process.env.OTEL_EXPORTER_OTLP_HEADERS = `authorization=${bearerToken.getAuthHeader()}`;
     process.env.OTEL_EXPORTER_OTLP_ENDPOINT = this.config.otlpEndpoint;
 
-    // Configure batch span processor for faster exports during development
-    // process.env.OTEL_BSP_SCHEDULE_DELAY = '1000';  // Export every 1 second
-    process.env.OTEL_BSP_MAX_EXPORT_BATCH_SIZE = '1';  // Export in smaller batches
-    // process.env.OTEL_BSP_EXPORT_TIMEOUT = '5000';  // 5 second timeout
+    // Setting batch size to 1 ensures spans are exported immediately.
+    // Without this, the batch processor holds spans waiting for more to accumulate,
+    // and its internal timers keep the Node.js event loop alive, preventing process
+    // exit in short-lived scripts. This causes spans to be logged but never exported.
+    process.env.OTEL_BSP_MAX_EXPORT_BATCH_SIZE = '1';
+    //process.env.OTEL_BSP_SCHEDULE_DELAY = '500';
+    //process.env.OTEL_BSP_EXPORT_TIMEOUT = '5000';
 
-    // Start the SDK (it was created in constructor)
     this.sdk.start();
-
-    // Setup process exit handlers
     this.setupExitHandlers();
+
     this._initialized = true;
     console.debug('[agentops] initialized');
   }
@@ -162,9 +159,9 @@ export class Client {
    * @private
    */
   private setupExitHandlers(): void {
-    process.on('exit', this.shutdown);
-    process.on('SIGINT', this.shutdown);
-    process.on('SIGTERM', this.shutdown);
+    process.on('exit', () => this.shutdown());
+    process.on('SIGINT', () => this.shutdown());
+    process.on('SIGTERM', () => this.shutdown());
     process.on('uncaughtException', (err) => {
       console.error('Uncaught exception:', err);
       // TODO we can handle error states on unexported spans here
