@@ -16,10 +16,8 @@ const SPAN_TYPE_LABELS: Record<string, string> = {
   'transcription': 'Transcription',
   'speech': 'Speech',
   'speech_group': 'Speech Group',
-  'mcp_tools': 'MCP List Tools',
+  'mcp_tools': 'MCP Tool',
 };
-
-
 
 
 /**

@@ -1,6 +1,5 @@
 import { trace, context, SpanStatusCode, SpanKind, Span, ROOT_CONTEXT } from '@opentelemetry/api';
 import type { TracingExporter, Trace as OpenAITrace, Span as OpenAISpan } from '@openai/agents';
-import type { SpanData, GenerationSpanData } from '@openai/agents-core/dist/tracing/spans';
 import { InstrumentationBase } from '../base';
 import { getSpanAttributes, getSpanName, getSpanKind } from './attributes';
 
