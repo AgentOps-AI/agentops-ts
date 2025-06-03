@@ -1,16 +1,15 @@
 import { agentops } from '../src';
+import { createCompletion } from 'agentops-test-lib';
 
 async function main() {
-  const testLib = require('agentops-test-lib');
+  await agentops.init();
 
-  await agentops.init({ apiKey: '55931aa5-ca2e-4936-91ea-2d93f40fac4d' });
-
-  const result = testLib.createCompletion('What is the meaning of life?', {
+  const result = createCompletion('What is the meaning of life?', {
     model: 'gpt-4',
     temperature: 0.8,
     maxTokens: 50
   });
-  console.log('testLib.createCompletion:', result);
+  console.log('createCompletion:', result);
 }
 
 if (require.main === module) {
