@@ -100,7 +100,7 @@ export function extractAttributesFromMappingWithIndex(
  * combining all attributes into a single AttributeMap.
  */
 export function extractAttributesFromArray(
-  items: Array<Record<string, any>>,
+  items: Array<any>,
   attributeMapping: IndexedAttributeMap
 ): AttributeMap {
   const attributes: AttributeMap = {};

@@ -1,14 +1,9 @@
-import { BatchTraceProcessor } from '@openai/agents';
-
+import { BatchTraceProcessor, addTraceProcessor } from '@openai/agents';
 import { InstrumentationBase } from '../base';
 import { InstrumentorMetadata } from '../../types';
-
 import { OpenAIAgentsTracingExporter } from './exporter';
 
-/**
- * Instrumentation for openai-agents framework
- * Uses runtime targeting to bypass OpenTelemetry module hooking
- */
+
 export class OpenAIAgentsInstrumentation extends InstrumentationBase {
   static readonly metadata: InstrumentorMetadata = {
     name: 'openai-agents-instrumentation',
@@ -17,44 +12,28 @@ export class OpenAIAgentsInstrumentation extends InstrumentationBase {
     targetLibrary: '@openai/agents',
     targetVersions: ['*']
   };
-
+  // runtime targeting works better with this library and lets us have less strict import patterns.
   static readonly useRuntimeTargeting = true;
 
   protected setup(moduleExports: any, moduleVersion?: string): any {
-    console.log('[openai-agents-instrumentation] Setting up OpenAI Agents tracing integration...');
-
     try {
-      const { addTraceProcessor } = moduleExports;
+      const exporter = new OpenAIAgentsTracingExporter(this);
+      // this is the OpenAI Agents exporter, so we have it immediately export traces
+      // into our own queue.
+      const processor = new BatchTraceProcessor(exporter, {
+        maxBatchSize: 1
+      });
 
-      if (addTraceProcessor) {
-        // Create our custom exporter with access to this instrumentation's tracer
-        const agentOpsExporter = new OpenAIAgentsTracingExporter(this);
-
-        // Create a batch processor with our exporter
-        const processor = new BatchTraceProcessor(agentOpsExporter, {
-          maxBatchSize: 1
-          // ,
-          // scheduleDelay: 500
-        });
-
-        // Register our processor
-        addTraceProcessor(processor);
-
-        console.log('[openai-agents-instrumentation] ✅ Tracing integration successful');
-      } else {
-        console.warn('[openai-agents-instrumentation] ⚠️  addTraceProcessor not found in openai-agents module');
-        console.log('[openai-agents-instrumentation] Available exports:', Object.keys(moduleExports));
-      }
+      addTraceProcessor(processor);
     } catch (error) {
-      console.error('[openai-agents-instrumentation] ❌ Failed to setup tracing:', error);
+      console.error('[openai-agents] failed: ', error);
     }
 
     return moduleExports;
   }
 
   protected teardown(moduleExports: any, moduleVersion?: string): any {
-    // TODO
-    console.log('[openai-agents-instrumentation] Tearing down OpenAI Agents instrumentation');
+    // TODO removeTraceProcessor?
     return moduleExports;
   }
 }

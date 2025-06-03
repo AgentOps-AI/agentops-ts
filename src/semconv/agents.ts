@@ -33,3 +33,40 @@ export const AGENT_STEP_TYPE = 'agent.step.type';
 export const AGENT_TEAM_ID = 'agent.team.id';
 export const AGENT_ROLE_IN_TEAM = 'agent.role.in_team';
 export const AGENT_COLLABORATION_TYPE = 'agent.collaboration.type';
+
+// Agent handoffs (indexed)
+export const AGENT_HANDOFF_FROM = 'agent.handoff.{i}.from';
+export const AGENT_HANDOFF_TO = 'agent.handoff.{i}.to';
+
+// Agent tools (indexed)
+export const AGENT_TOOL_NAME = 'agent.tool.{i}.name';
+export const AGENT_TOOL_DESCRIPTION = 'agent.tool.{i}.description';
+export const AGENT_OUTPUT_TYPE = 'agent.output_type';
+
+// Function calls
+export const FUNCTION_NAME = 'function.name';
+export const FUNCTION_INPUT = 'function.input';
+export const FUNCTION_OUTPUT = 'function.output';
+export const FUNCTION_MCP_DATA = 'function.mcp_data';
+
+// Response data
+export const RESPONSE_ID = 'response.id';
+export const RESPONSE_INPUT = 'response.input';
+
+// Custom spans
+export const CUSTOM_NAME = 'custom.name';
+export const CUSTOM_DATA = 'custom.data';
+
+// Guardrails
+export const GUARDRAIL_NAME = 'guardrail.name';
+export const GUARDRAIL_TRIGGERED = 'guardrail.triggered';
+
+// Audio/Speech
+export const AUDIO_INPUT_DATA = 'audio.input.data';
+export const AUDIO_INPUT_FORMAT = 'audio.input.format';
+export const AUDIO_OUTPUT_DATA = 'audio.output.data';
+export const AUDIO_OUTPUT_FORMAT = 'audio.output.format';
+
+// MCP Tools
+export const MCP_SERVER = 'mcp.server';
+export const MCP_TOOLS_RESULT = 'mcp.tools.result';

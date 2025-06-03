@@ -1,8 +1,29 @@
 import { Span, SpanKind } from '@opentelemetry/api';
 import type { Span as OpenAISpan } from '@openai/agents';
-import type { SpanData, GenerationSpanData } from '@openai/agents-core/dist/tracing/spans';
+import type {
+  SpanData,
+  GenerationSpanData,
+  AgentSpanData,
+  FunctionSpanData,
+  ResponseSpanData,
+  HandoffSpanData,
+  CustomSpanData,
+  GuardrailSpanData,
+  TranscriptionSpanData,
+  SpeechSpanData,
+  SpeechGroupSpanData,
+  MCPListToolsSpanData
+} from '@openai/agents-core/dist/tracing/spans';
+import { AttributeMap } from '../../attributes';
 import { convertGenerationSpan } from './generation';
-import { AttributeMap, extractAttributesFromMapping } from '../../attributes';
+import { convertAgentSpan } from './agent';
+import { convertFunctionSpan } from './function';
+import { convertResponseSpan } from './response';
+import { convertHandoffSpan } from './handoff';
+import { convertCustomSpan } from './custom';
+import { convertGuardrailSpan } from './guardrail';
+import { convertTranscriptionSpan, convertSpeechSpan, convertSpeechGroupSpan } from './audio';
+import { convertMCPListToolsSpan } from './mcp';
 
 
 const SPAN_TYPE_LABELS: Record<string, string> = {
@@ -78,20 +99,38 @@ export function getSpanAttributes(item: OpenAISpan<any>): Record<string, any> {
     case 'generation':
       typeSpecificAttributes = convertGenerationSpan(spanData as GenerationSpanData);
       break;
-
-    // TODO: Add other span type converters
     case 'agent':
+      typeSpecificAttributes = convertAgentSpan(spanData as AgentSpanData);
+      break;
     case 'function':
+      typeSpecificAttributes = convertFunctionSpan(spanData as FunctionSpanData);
+      break;
     case 'response':
+      typeSpecificAttributes = convertResponseSpan(spanData as ResponseSpanData);
+      break;
     case 'handoff':
+      typeSpecificAttributes = convertHandoffSpan(spanData as HandoffSpanData);
+      break;
     case 'custom':
+      typeSpecificAttributes = convertCustomSpan(spanData as CustomSpanData);
+      break;
     case 'guardrail':
+      typeSpecificAttributes = convertGuardrailSpan(spanData as GuardrailSpanData);
+      break;
     case 'transcription':
+      typeSpecificAttributes = convertTranscriptionSpan(spanData as TranscriptionSpanData);
+      break;
     case 'speech':
+      typeSpecificAttributes = convertSpeechSpan(spanData as SpeechSpanData);
+      break;
     case 'speech_group':
+      typeSpecificAttributes = convertSpeechGroupSpan(spanData as SpeechGroupSpanData);
+      break;
     case 'mcp_tools':
+      typeSpecificAttributes = convertMCPListToolsSpan(spanData as MCPListToolsSpanData);
+      break;
     default:
-      // For now, just include the raw span data
+      // For unknown span types, include the raw span data
       typeSpecificAttributes = {'span.raw_data': spanData };
       break;
   }
