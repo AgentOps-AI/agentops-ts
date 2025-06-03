@@ -90,8 +90,8 @@ export class Client {
     }
     this.api = new API(this.config.apiKey, this.config.apiEndpoint!);
 
-    const bearerToken = await this.getBearerToken();
-    process.env.OTEL_EXPORTER_OTLP_HEADERS = `authorization=${bearerToken.getAuthHeader()}`;
+    const authToken = await this.getAuthToken();
+    process.env.OTEL_EXPORTER_OTLP_HEADERS = `authorization=${authToken.getAuthHeader()}`;
     process.env.OTEL_EXPORTER_OTLP_ENDPOINT = this.config.otlpEndpoint;
 
     // Setting batch size to 1 ensures spans are exported immediately.
@@ -181,7 +181,7 @@ export class Client {
    * @throws {Error} When the SDK is not initialized
    * @private
    */
-  private async getBearerToken(): Promise<BearerToken> {
+  private async getAuthToken(): Promise<BearerToken> {
     if (!this.authToken) {
       const tokenResponse = await this.api!.authenticate();
       this.authToken = new BearerToken(tokenResponse.token);
