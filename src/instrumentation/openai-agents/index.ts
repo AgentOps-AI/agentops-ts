@@ -1,4 +1,4 @@
-import { BatchTraceProcessor, addTraceProcessor } from '@openai/agents';
+import { BatchTraceProcessor, addTraceProcessor, tracing } from '@openai/agents';
 import { InstrumentationBase } from '../base';
 import { InstrumentorMetadata } from '../../types';
 import { OpenAIAgentsTracingExporter } from './exporter';
@@ -17,6 +17,9 @@ export class OpenAIAgentsInstrumentation extends InstrumentationBase {
 
   protected setup(moduleExports: any, moduleVersion?: string): any {
     try {
+      // TODO revisit this as it might not be necessary in the future.
+      tracing.disabled = false;
+
       const exporter = new OpenAIAgentsTracingExporter(this);
       // this is the OpenAI Agents exporter, so we have it immediately export traces
       // into our own queue.
