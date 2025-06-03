@@ -23,10 +23,23 @@ export class InstrumentationRegistry {
    */
   constructor() {
     this.packageVersion = getPackageVersion();
-    // Auto-register only available instrumentors
+  }
+
+  /**
+   * Initialize the registry by checking availability and registering instrumentors.
+   * This is called from Client.init() to ensure availability is checked from the correct working directory.
+   */
+  initialize(): void {
     for (const instrumentorClass of AVAILABLE_INSTRUMENTORS) {
       if (instrumentorClass.available) {
         this.register(instrumentorClass);
+
+        // For instrumentors using runtime targeting, trigger setup immediately
+        if (instrumentorClass.useRuntimeTargeting) {
+          // TODO don't hardcode package name.
+          const instance = new (instrumentorClass as any)('agentops', this.packageVersion, {});
+          instance.setupRuntimeTargeting();
+        }
       }
     }
   }

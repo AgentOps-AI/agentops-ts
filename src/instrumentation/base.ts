@@ -6,6 +6,35 @@ import {
 } from '@opentelemetry/instrumentation';
 import { InstrumentorMetadata } from '../types';
 
+
+/**
+ * Utility function to resolve module exports robustly from the current working directory.
+ * This allows instrumentations to access modules that may not be in the global node_modules.
+ *
+ * @param moduleName - Name of the module to resolve
+ * @throws {Error} If the module cannot be resolved
+ * @returns The resolved module exports, or null if the module cannot be found
+ */
+function resolveModulePath(moduleName: string): string {
+  // Use require.resolve to find the module path from current working directory
+  return require.resolve(moduleName, { paths: [process.cwd()] });
+}
+
+/**
+ * Utility function to get module exports from a resolved module path.
+ * Returns null if the module cannot be found or loaded.
+ *
+ * @param moduleName - Name of the module to load
+ * @returns The module exports, or null if the module cannot be found
+ */
+function getModuleExports(moduleName: string): any {
+  try {
+    return require(resolveModulePath(moduleName));
+  } catch (error) {
+    return null;
+  }
+}
+
 /**
  * Base class for all AgentOps instrumentations.
  *
@@ -32,6 +61,8 @@ import { InstrumentorMetadata } from '../types';
  */
 export abstract class InstrumentationBase extends _InstrumentationBase {
   static readonly metadata: InstrumentorMetadata;
+  static readonly useRuntimeTargeting?: boolean = false;
+  private isRuntimeSetup = false;
 
   /**
    * Initializes the instrumentation module definition using the static metadata.
@@ -65,7 +96,7 @@ export abstract class InstrumentationBase extends _InstrumentationBase {
    */
   static get available(): boolean {
     try {
-      require.resolve(this.metadata.targetLibrary);
+      resolveModulePath(this.metadata.targetLibrary);
       return true;
     } catch (error) {
       return false;
@@ -75,9 +106,9 @@ export abstract class InstrumentationBase extends _InstrumentationBase {
   /**
    * Sets up instrumentation patches for the target module.
    *
-   * NOTE: This method is only called automatically when the target library is 
-   * actually require()'d or import'ed by the application. OpenTelemetry uses 
-   * module hooking to detect when modules are loaded and applies patches at 
+   * NOTE: This method is only called automatically when the target library is
+   * actually require()'d or import'ed by the application. OpenTelemetry uses
+   * module hooking to detect when modules are loaded and applies patches at
    * that time, not during instrumentation registration.
    *
    * Subclasses should override this method to apply their specific instrumentation logic.
@@ -124,5 +155,53 @@ export abstract class InstrumentationBase extends _InstrumentationBase {
     });
   }
 
+  /**
+   * Gets the target module exports for runtime targeting.
+   * Returns null if runtime targeting is not enabled or module is not available.
+   */
+  private getTargetModuleExports(): any {
+    const useRuntimeTargeting = (this.constructor as typeof InstrumentationBase).useRuntimeTargeting;
+    if (!useRuntimeTargeting) {
+      return null;
+    }
+
+    const metadata = (this.constructor as typeof InstrumentationBase).metadata;
+    return getModuleExports(metadata.targetLibrary);
+  }
+
+  /**
+   * Performs runtime targeting for instrumentations that bypass OpenTelemetry's module hooking.
+   * This method uses robust module resolution and calls the setup method directly.
+   */
+  setupRuntimeTargeting(): void {
+    if (this.isRuntimeSetup) {
+      return;
+    }
+
+    const moduleExports = this.getTargetModuleExports();
+    if (!moduleExports) {
+      return;
+    }
+
+    this.setup(moduleExports);
+    this.isRuntimeSetup = true;
+  }
+
+  /**
+   * Performs runtime teardown for instrumentations using runtime targeting.
+   */
+  teardownRuntimeTargeting(): void {
+    if (!this.isRuntimeSetup) {
+      return;
+    }
+
+    const moduleExports = this.getTargetModuleExports();
+    if (!moduleExports) {
+      return;
+    }
+
+    this.teardown(moduleExports);
+    this.isRuntimeSetup = false;
+  }
 
 }

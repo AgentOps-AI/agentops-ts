@@ -1,0 +1,26 @@
+{
+  "name": "openai-agents-example",
+  "version": "1.0.0",
+  "description": "Example OpenAI agent with AgentOps instrumentation",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tsx index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "openai": "^4.0.0",
+    "openai-agents": "file:../../../openai-agents-js/openai-agents-0.0.1-next.0.tgz",
+    "agentops": "file:../..",
+    "zod": "^3.22.0",
+    "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": ["openai", "agentops", "instrumentation", "example"],
+  "author": "",
+  "license": "MIT"
+}

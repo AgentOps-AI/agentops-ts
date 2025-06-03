@@ -85,6 +85,8 @@ export class Client {
     this.config = { ...this.config, ...config };
     this.configureLogging();
 
+    this.registry.initialize();
+
     if (!this.config.apiKey) {
       throw new Error('API key is required. Set AGENTOPS_API_KEY environment variable or pass it in config.');
     }

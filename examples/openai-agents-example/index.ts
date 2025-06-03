@@ -1,0 +1,113 @@
+import 'dotenv/config';
+import { Agent, run, tool } from 'openai-agents';
+import { agentops } from 'agentops';
+import { z } from 'zod';
+
+
+type Weather = {
+  city: string;
+  temperatureRange: string;
+  conditions: string;
+  humidity: number;
+  windSpeed: string;
+};
+
+// Enhanced weather tool with more realistic data
+const getWeather = tool({
+  name: 'get_weather',
+  description: 'Get comprehensive weather information for a city.',
+  parameters: z.object({
+    city: z.string().describe('The city to get weather for'),
+    units: z.enum(['celsius', 'fahrenheit']).optional().default('celsius')
+  }),
+  execute: async ({ city, units }): Promise<Weather> => {
+    console.log(`🌤️  Fetching weather for ${city} (${units})`);
+
+    // Mock weather data based on city
+    const mockData: Record<string, Weather> = {
+      'tokyo': {
+        city: 'Tokyo',
+        temperatureRange: units === 'fahrenheit' ? '57-68°F' : '14-20°C',
+        conditions: 'Partly cloudy with light winds',
+        humidity: 65,
+        windSpeed: '12 km/h'
+      },
+      'london': {
+        city: 'London',
+        temperatureRange: units === 'fahrenheit' ? '46-54°F' : '8-12°C',
+        conditions: 'Overcast with chance of rain',
+        humidity: 78,
+        windSpeed: '15 km/h'
+      },
+      'new york': {
+        city: 'New York',
+        temperatureRange: units === 'fahrenheit' ? '50-62°F' : '10-17°C',
+        conditions: 'Clear and sunny',
+        humidity: 55,
+        windSpeed: '8 km/h'
+      }
+    };
+
+    const weather = mockData[city.toLowerCase()] || {
+      city,
+      temperatureRange: units === 'fahrenheit' ? '68-75°F' : '20-24°C',
+      conditions: 'Pleasant and mild',
+      humidity: 60,
+      windSpeed: '10 km/h'
+    };
+
+    console.log(`📊 Weather data retrieved for ${weather.city}`);
+    return weather;
+  },
+});
+
+// Create the agent with enhanced instructions
+const weatherAgent = new Agent({
+  name: 'Weather Assistant',
+  instructions: `You are a helpful weather assistant that provides detailed weather information.
+  When users ask about weather, use the get_weather tool and provide a comprehensive response
+  including temperature, conditions, humidity, and wind information. Be conversational and helpful.`,
+  tools: [getWeather],
+});
+
+async function main() {
+  try {
+    // Initialize AgentOps
+    await agentops.init();
+
+    console.log('\n🤖 Starting weather agent conversation...\n');
+
+    // Example 1: Basic weather query
+    console.log('Query 1: "What\'s the weather in Tokyo?"');
+    const result1 = await run(weatherAgent, "What's the weather in Tokyo?");
+    console.log('Response:', result1.finalOutput);
+    console.log('---\n');
+
+    // Example 2: Weather comparison
+    console.log('Query 2: "Compare the weather in London and New York"');
+    const result2 = await run(weatherAgent, "Compare the weather in London and New York");
+    console.log('Response:', result2.finalOutput);
+    console.log('---\n');
+
+    // Example 3: Weather with specific units
+    console.log('Query 3: "What\'s the weather in Tokyo in Fahrenheit?"');
+    const result3 = await run(weatherAgent, "What's the weather in Tokyo in Fahrenheit?");
+    console.log('Response:', result3.finalOutput);
+
+    console.log('\n✅ All queries completed successfully!');
+
+  } catch (error) {
+    console.error('❌ Error during execution:', error);
+    process.exit(1);
+  }
+}
+
+// Handle graceful shutdown
+process.on('SIGINT', () => {
+  console.log('\n🛑 Shutting down gracefully...');
+  process.exit(0);
+});
+
+if (require.main === module) {
+  main().catch(console.error);
+}
