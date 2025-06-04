@@ -2,6 +2,7 @@ import { trace, context, SpanStatusCode, SpanKind, Span, ROOT_CONTEXT } from '@o
 import type { TracingExporter, Trace as OpenAITrace, Span as OpenAISpan } from '@openai/agents';
 import { InstrumentationBase } from '../base';
 import { getSpanAttributes, getSpanName, getSpanKind } from './attributes';
+import type { AgentOpsResponseSpanData } from './response';
 
 
 export class OpenAIAgentsTracingExporter implements TracingExporter {
@@ -9,12 +10,29 @@ export class OpenAIAgentsTracingExporter implements TracingExporter {
   private readonly traceMap = new Map<string, Span>(); // OpenAI Agents trace ID -> root OpenTelemetry span
   private readonly spanMap = new Map<string, Span>(); // OpenAI Agents span ID -> OpenTelemetry span
 
+  // Storage for enhanced response data, keyed by response ID
+  private readonly enhancedResponseData = new Map<string, Partial<AgentOpsResponseSpanData>>();
+
   /**
    * Creates a new OpenAIAgentsTracingExporter instance.
    * @param instrumentation The instrumentation base to use for exporting spans.
    */
   constructor(instrumentation: InstrumentationBase) {
     this.instrumentation = instrumentation;
+  }
+
+  /**
+   * Stores enhanced response data for later injection into response spans.
+   */
+  public storeEnhancedResponseData(responseId: string, enhancedData: Partial<AgentOpsResponseSpanData>): void {
+    this.enhancedResponseData.set(responseId, enhancedData);
+  }
+
+  /**
+   * Retrieves enhanced response data for a given response ID.
+   */
+  private getEnhancedResponseData(responseId: string): Partial<AgentOpsResponseSpanData> | undefined {
+    return this.enhancedResponseData.get(responseId);
   }
 
   /**
@@ -63,6 +81,15 @@ export class OpenAIAgentsTracingExporter implements TracingExporter {
    * The span is stored in a map for later reference.
    */
   private handleSpan(item: OpenAISpan<any>): void {
+    // Check if this is a response span that we can enhance with stored generation data
+    if (item.spanData.type === 'response' && item.spanData.response_id) {
+      const enhancedData = this.getEnhancedResponseData(item.spanData.response_id);
+      if (enhancedData) {
+        // Enhance the span data directly
+        Object.assign(item.spanData, enhancedData);
+      }
+    }
+
     const attributes = getSpanAttributes(item);
     const spanName = getSpanName(item.spanData);
 

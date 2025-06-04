@@ -18,7 +18,7 @@ import { AttributeMap } from '../../attributes';
 import { convertGenerationSpan } from './generation';
 import { convertAgentSpan } from './agent';
 import { convertFunctionSpan } from './function';
-import { convertResponseSpan } from './response';
+import { convertResponseSpan, convertEnhancedResponseSpan, AgentOpsResponseSpanData } from './response';
 import { convertHandoffSpan } from './handoff';
 import { convertCustomSpan } from './custom';
 import { convertGuardrailSpan } from './guardrail';
@@ -106,7 +106,13 @@ export function getSpanAttributes(item: OpenAISpan<any>): Record<string, any> {
       typeSpecificAttributes = convertFunctionSpan(spanData as FunctionSpanData);
       break;
     case 'response':
-      typeSpecificAttributes = convertResponseSpan(spanData as ResponseSpanData);
+      // Check if this is an enhanced AgentOps response span with generation data
+      // TODO check this more effectively that this...
+      if ('agentops_model' in spanData || 'agentops_input_messages' in spanData || 'agentops_output_messages' in spanData || 'agentops_usage' in spanData) {
+        typeSpecificAttributes = convertEnhancedResponseSpan(spanData as AgentOpsResponseSpanData);
+      } else {
+        typeSpecificAttributes = convertResponseSpan(spanData as ResponseSpanData);
+      }
       break;
     case 'handoff':
       typeSpecificAttributes = convertHandoffSpan(spanData as HandoffSpanData);
