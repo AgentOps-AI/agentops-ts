@@ -1,11 +1,19 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  roots: ['<rootDir>/src'],
+  roots: ['<rootDir>/tests'],
   testMatch: ['**/__tests__/**/*.test.ts', '**/?(*.)+(spec|test).ts'],
-  testPathIgnorePatterns: ['<rootDir>/src/__tests__/setup.ts', '<rootDir>/src/__tests__/mocks/'],
+  testPathIgnorePatterns: ['<rootDir>/tests/setup.ts', '<rootDir>/tests/mocks/'],
   transform: {
-    '^.+\\.ts$': 'ts-jest',
+    '^.+\\.ts$': ['ts-jest', {
+      useESM: false,
+    }],
+  },
+  transformIgnorePatterns: [
+    'node_modules/(?!(@openai/agents|@openai/agents-core)/)'
+  ],
+  moduleNameMapper: {
+    '^@openai/agents$': '<rootDir>/tests/mocks/opentelemetry.ts'
   },
   collectCoverageFrom: [
     'src/**/*.ts',
@@ -15,6 +23,6 @@ module.exports = {
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
-  setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   testTimeout: 10000,
 };

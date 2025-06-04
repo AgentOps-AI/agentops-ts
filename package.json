@@ -21,17 +21,17 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@openai/agents": "^0.0.1",
     "@opentelemetry/api": "^1.8.0",
     "@opentelemetry/exporter-collector": "^0.25.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.202.0",
     "@opentelemetry/instrumentation": "^0.52.1",
     "@opentelemetry/sdk-node": "^0.52.1",
-    "@opentelemetry/semantic-conventions": "^1.25.1",
-    "@openai/agents": "^0.0.1"
+    "@opentelemetry/semantic-conventions": "^1.25.1"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.12",
-    "@types/node": "^20.14.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.17.57",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "eslint": "^8.57.0",

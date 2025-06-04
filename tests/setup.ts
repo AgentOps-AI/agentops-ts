@@ -11,3 +11,12 @@ global.console = {
   error: jest.fn(),
   log: jest.fn(),
 };
+
+// Mock console.debug to keep test output clean
+const originalDebug = console.debug;
+console.debug = jest.fn();
+
+// Restore console.debug after all tests
+afterAll(() => {
+  console.debug = originalDebug;
+});

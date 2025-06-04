@@ -1,3 +1,10 @@
+// Mock @openai/agents components
+jest.mock('@openai/agents', () => ({
+  BatchTraceProcessor: jest.fn(),
+  setTraceProcessors: jest.fn(),
+  setTracingDisabled: jest.fn(),
+}));
+
 // Mock OpenTelemetry components
 export const mockNodeSDK = {
   start: jest.fn(),

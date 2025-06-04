@@ -1,5 +1,5 @@
 import '../mocks/opentelemetry';
-import { Client } from '../../client';
+import { Client } from '../../src/client';
 
 // Mock fetch for API calls
 const mockFetch = jest.fn();
