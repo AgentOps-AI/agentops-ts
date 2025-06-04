@@ -1,4 +1,5 @@
 import { Resource } from '@opentelemetry/resources';
+import { detectResourcesSync } from '@opentelemetry/resources';
 import { SEMRESATTRS_SERVICE_NAME, SEMRESATTRS_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 
 export type AttributeMap = Record<string, string>;
@@ -8,19 +9,49 @@ export type IndexedAttributeData = { i: number; j?: number };
 
 const packageInfo = require('../package.json');
 
+/**
+  * Returns the version of the AgentOps SDK package.
+  * @returns {string} - The version string from package.json
+ */
 export function getPackageVersion(): string {
   return packageInfo.version;
 }
 
+/**
+  * Creates a global resource attributes object for OpenTelemetry SDK.
+  *
+  * This includes service name and version, along with any detected resources.
+  *
+  * @param serviceName - The name of the service being instrumented
+  * @returns A Resource object containing global attributes
+ */
 export function createGlobalResourceAttributes(serviceName: string): Resource {
   return new Resource({
+    ...detectResourcesSync().attributes,
     [SEMRESATTRS_SERVICE_NAME]: serviceName,
-    [SEMRESATTRS_SERVICE_VERSION]: getPackageVersion(),
+    [SEMRESATTRS_SERVICE_VERSION]: getPackageVersion()
   });
 }
 
 /**
+ * Helper function to check if a value is empty or null/undefined.
+ *
+ * @param value - The value to check
+ * @return True if the value should be considered empty
+ */
+function isEmptyValue(value: any): boolean {
+  if (value === null || value === undefined) return true;
+  if (typeof value === 'string' && value === '') return true;
+  if (Array.isArray(value) && value.length === 0) return true;
+  if (typeof value === 'object' && Object.keys(value).length === 0) return true;
+  return false;
+}
+
+/**
  * Helper function to safely serialize complex objects.
+ *
+ * @param value - The value to serialize
+ * @return A string representation of the value
  */
 export function safeSerialize(value: any): string {
   try {
@@ -32,6 +63,10 @@ export function safeSerialize(value: any): string {
 
 /**
  * Helper function to extract attributes based on a mapping.
+ *
+ * @param data - The data object to extract attributes from
+ * @param mapping - An AttributeMap that defines how to extract attributes
+ * @return An AttributeMap containing the extracted attributes
  */
 export function extractAttributesFromMapping(data: any, mapping: AttributeMap): AttributeMap {
   const attributes: AttributeMap = {};
@@ -39,24 +74,17 @@ export function extractAttributesFromMapping(data: any, mapping: AttributeMap): 
   for (const [target, source] of Object.entries(mapping)) {
     let value: any;
 
-    // TODO not proud of this
     if (typeof data === 'object' && data !== null && source in data) {
-      value = data[source];
-    } else if (typeof data === 'object' && data !== null && typeof data[source] !== 'undefined') {
       value = data[source];
     } else {
       continue;
     }
 
-    // Skip if value is None or empty
-    if (value === null || value === undefined || (typeof value === 'string' && value === '') ||
-        (Array.isArray(value) && value.length === 0) ||
-        (typeof value === 'object' && Object.keys(value).length === 0)) {
+    if (isEmptyValue(value)) {
       continue;
     }
 
-    // Serialize complex objects
-    if (typeof value === 'object' && !Array.isArray(value) && value !== null) {
+    if (typeof value !== 'string') {
       value = safeSerialize(value);
     }
 
