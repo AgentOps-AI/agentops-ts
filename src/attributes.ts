@@ -33,16 +33,17 @@ export function safeSerialize(value: any): string {
 /**
  * Helper function to extract attributes based on a mapping.
  */
-export function extractAttributesFromMapping(spanData: any, attributeMapping: AttributeMap): AttributeMap {
+export function extractAttributesFromMapping(data: any, mapping: AttributeMap): AttributeMap {
   const attributes: AttributeMap = {};
 
-  for (const [targetAttr, sourceAttr] of Object.entries(attributeMapping)) {
+  for (const [target, source] of Object.entries(mapping)) {
     let value: any;
 
-    if (typeof spanData === 'object' && spanData !== null && sourceAttr in spanData) {
-      value = spanData[sourceAttr];
-    } else if (typeof spanData === 'object' && spanData !== null && typeof spanData[sourceAttr] !== 'undefined') {
-      value = spanData[sourceAttr];
+    // TODO not proud of this
+    if (typeof data === 'object' && data !== null && source in data) {
+      value = data[source];
+    } else if (typeof data === 'object' && data !== null && typeof data[source] !== 'undefined') {
+      value = data[source];
     } else {
       continue;
     }
@@ -59,7 +60,7 @@ export function extractAttributesFromMapping(spanData: any, attributeMapping: At
       value = safeSerialize(value);
     }
 
-    attributes[targetAttr] = value;
+    attributes[target] = value;
   }
 
   return attributes;
@@ -70,27 +71,27 @@ export function extractAttributesFromMapping(spanData: any, attributeMapping: At
  *
  * This function extends `extractAttributesFromMapping` by allowing for indexed keys in the attribute mapping.
  * The attribute mapping keys should contain format strings for i/j, e.g. `my_attr_{i}` or `my_attr_{i}_{j}`.
+ *
+ * @param data - The data object to extract attributes from.
+ * @param mapping - An IndexedAttributeMap that defines how to extract attributes with indices.
+ * @param i - The index for the primary attribute.
+ * @param j - An optional secondary index for attributes that require it.
+ * @return An AttributeMap containing the extracted attributes with formatted keys.
  */
 export function extractAttributesFromMappingWithIndex(
-  spanData: any,
-  attributeMapping: IndexedAttributeMap,
+  data: any,
+  mapping: IndexedAttributeMap,
   i: number,
   j?: number
 ): AttributeMap {
-  // `i` is required for formatting the attribute keys, `j` is optional
-  const formatData: IndexedAttributeData = { i };
-  if (j !== undefined) {
-    formatData.j = j;
+  const attributes: AttributeMap = {};
+
+  for (const [target, source] of Object.entries(mapping)) {
+    const formatted = target.replace(/\{i\}/g, String(i)).replace(/\{j\}/g, String(j || ''));
+    attributes[formatted] = source;
   }
 
-  // Update the attribute mapping to include the index for the span
-  const attributeMappingWithIndex: AttributeMap = {};
-  for (const [targetAttr, sourceAttr] of Object.entries(attributeMapping)) {
-    const formattedTargetAttr = targetAttr.replace(/\{i\}/g, String(i)).replace(/\{j\}/g, String(j || ''));
-    attributeMappingWithIndex[formattedTargetAttr] = sourceAttr;
-  }
-
-  return extractAttributesFromMapping(spanData, attributeMappingWithIndex);
+  return extractAttributesFromMapping(data, attributes);
 }
 
 /**
@@ -98,20 +99,17 @@ export function extractAttributesFromMappingWithIndex(
  *
  * This function iterates over an array and applies indexed attribute mapping to each item,
  * combining all attributes into a single AttributeMap.
+ *
+ * @param items - An array of items to extract attributes from.
+ * @param mapping - An IndexedAttributeMap that defines how to extract attributes from each item.
+ * @return An AttributeMap containing all extracted attributes from the array.
  */
-export function extractAttributesFromArray(
-  items: Array<any>,
-  attributeMapping: IndexedAttributeMap
-): AttributeMap {
+export function extractAttributesFromArray(items: Array<any>, mapping: IndexedAttributeMap): AttributeMap {
   const attributes: AttributeMap = {};
 
-  items.forEach((item, index) => {
-    const itemAttributes = extractAttributesFromMappingWithIndex(
-      item,
-      attributeMapping,
-      index
-    );
-    Object.assign(attributes, itemAttributes);
+  items.forEach((item, i) => {
+    Object.assign(attributes,
+      extractAttributesFromMappingWithIndex(item, mapping, i));
   });
 
   return attributes;
