@@ -1,10 +1,8 @@
-import { NodeSDK as OpenTelemetryNodeSDK } from '@opentelemetry/sdk-node';
-import { diag, DiagConsoleLogger, DiagLogLevel } from '@opentelemetry/api';
 import { InstrumentationRegistry } from './instrumentation/registry';
 import { InstrumentationBase } from './instrumentation/base';
 import { Config, LogLevel } from './types';
-import { createGlobalResourceAttributes } from './attributes';
 import { API, TokenResponse, BearerToken } from './api';
+import { TracingCore } from './tracing';
 
 const debug = require('debug')('agentops:client');
 
@@ -28,14 +26,13 @@ const debug = require('debug')('agentops:client');
 export class Client {
   private config: Config;
   public readonly registry: InstrumentationRegistry;
-  private sdk: OpenTelemetryNodeSDK;
+  private core: TracingCore | null = null;
   private api: API | null = null;
   private authToken: BearerToken | null = null;
   private _initialized = false;
 
   /**
    * Creates a new Client instance with default configuration.
-   * Creates the SDK with instrumentations immediately to catch module loading.
    */
   constructor() {
     this.config = {
@@ -46,12 +43,6 @@ export class Client {
       logLevel: (process.env.AGENTOPS_LOG_LEVEL as LogLevel) || 'error'
     };
     this.registry = new InstrumentationRegistry();
-
-    // Create SDK with instrumentations early to catch module loading
-    this.sdk = new OpenTelemetryNodeSDK({
-      resource: createGlobalResourceAttributes(this.config.serviceName!),
-      instrumentations: this.registry.getActiveInstrumentors(this.config.serviceName!),
-    });
   }
 
   /**
@@ -83,9 +74,7 @@ export class Client {
       return;
     }
 
-    // Merge user config with defaults
     this.config = { ...this.config, ...config };
-    this.configureLogging();
     this.registry.initialize();
 
     if (!this.config.apiKey) {
@@ -93,24 +82,15 @@ export class Client {
     }
     this.api = new API(this.config.apiKey, this.config.apiEndpoint!);
 
-    const authToken = await this.getAuthToken();
-    process.env.OTEL_EXPORTER_OTLP_HEADERS = `authorization=${authToken.getAuthHeader()}`;
-    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = this.config.otlpEndpoint;
-
-    // Setting batch size to 1 ensures spans are exported immediately.
-    // Without this, the batch processor holds spans waiting for more to accumulate,
-    // and its internal timers keep the Node.js event loop alive, preventing process
-    // exit in short-lived scripts. This causes spans to be logged but never exported.
-    process.env.OTEL_BSP_MAX_EXPORT_BATCH_SIZE = '1';
-    //process.env.OTEL_BSP_SCHEDULE_DELAY = '500';
-    //process.env.OTEL_BSP_EXPORT_TIMEOUT = '5000';
-
-
-    this.sdk.start();
+    this.core = new TracingCore(
+      this.config,
+      await this.getAuthToken(),
+      this.registry.getActiveInstrumentors(this.config.serviceName!)
+    );
     this.setupExitHandlers();
 
     this._initialized = true;
-    debug('[agentops] initialized');
+    debug('initialized');
   }
 
   /**
@@ -144,9 +124,12 @@ export class Client {
       return;
     }
 
-    await this.sdk.shutdown();
+    if(this.core) {
+      await this.core.shutdown();
+    }
+
     this._initialized = false;
-    debug('[agentops] shutdown');
+    debug('shutdown');
   }
 
   /**
@@ -194,19 +177,5 @@ export class Client {
     return this.authToken;
   }
 
-  /**
-   * Configures OpenTelemetry diagnostic logging and debug visibility based on the current log level.
-   */
-  private configureLogging(): void {
-    const logLevel = this.config.logLevel!;
-    const levelMap: Record<LogLevel, DiagLogLevel> = {
-      debug: DiagLogLevel.DEBUG,
-      info: DiagLogLevel.INFO,
-      error: DiagLogLevel.ERROR
-    };
-    const diagLevel = levelMap[logLevel] || DiagLogLevel.ERROR;
-
-    diag.setLogger(new DiagConsoleLogger(), diagLevel);
-  }
 }
 
