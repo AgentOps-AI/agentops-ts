@@ -14,7 +14,9 @@ export class OpenAIAgentsTracingExporter implements TracingExporter {
    * @param instrumentation The instrumentation base to use for exporting spans.
    */
   constructor(instrumentation: InstrumentationBase) {
+    console.debug('[openai-agents-exporter] constructor called for instrumentation:', instrumentation.instrumentationName);
     this.instrumentation = instrumentation;
+    console.debug('[openai-agents-exporter] exporter initialized with ID:', this.constructor.name + '#' + Math.random().toString(36).substr(2, 9));
   }
 
   /**
@@ -22,6 +24,7 @@ export class OpenAIAgentsTracingExporter implements TracingExporter {
    * @param items The items to export, which can be either traces or spans.
    */
   async export(items: (OpenAITrace | OpenAISpan<any>)[]): Promise<void> {
+    console.debug('[openai-agents-exporter] export() called with', items.length, 'items');
     for (const item of items) {
       if (item.type === 'trace') {
         this.handleTrace(item as OpenAITrace);

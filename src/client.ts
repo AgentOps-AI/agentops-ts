@@ -84,6 +84,7 @@ export class Client {
     // Merge user config with defaults
     this.config = { ...this.config, ...config };
     this.configureLogging();
+    this.registry.initialize();
 
     if (!this.config.apiKey) {
       throw new Error('API key is required. Set AGENTOPS_API_KEY environment variable or pass it in config.');
@@ -102,7 +103,7 @@ export class Client {
     //process.env.OTEL_BSP_SCHEDULE_DELAY = '500';
     //process.env.OTEL_BSP_EXPORT_TIMEOUT = '5000';
 
-    this.registry.initialize();
+
     this.sdk.start();
     this.setupExitHandlers();
 

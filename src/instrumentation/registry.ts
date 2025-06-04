@@ -36,9 +36,17 @@ export class InstrumentationRegistry {
 
         // For instrumentors using runtime targeting, create instance and trigger setup immediately
         if (instrumentorClass.useRuntimeTargeting) {
-          const instance = this.createInstance(instrumentorClass, 'agentops');
-          if (instance) {
-            instance.setupRuntimeTargeting();
+          console.debug(`[agentops.registry] ${instrumentorClass.identifier} uses runtime targeting`);
+          const existingInstance = this.enabledInstrumentors.get(instrumentorClass.identifier);
+          if (!existingInstance) {
+            console.debug(`[agentops.registry] no existing instance, creating new one for ${instrumentorClass.identifier}`);
+            const instance = this.createInstance(instrumentorClass, 'agentops');
+            if (instance) {
+              console.debug(`[agentops.registry] calling setupRuntimeTargeting for ${instrumentorClass.identifier}`);
+              instance.setupRuntimeTargeting();
+            }
+          } else {
+            console.debug(`[agentops.registry] existing instance found for ${instrumentorClass.identifier}, skipping runtime setup`);
           }
         }
       }

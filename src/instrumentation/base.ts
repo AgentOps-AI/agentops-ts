@@ -62,7 +62,7 @@ function getModuleExports(moduleName: string): any {
 export abstract class InstrumentationBase extends _InstrumentationBase {
   static readonly metadata: InstrumentorMetadata;
   static readonly useRuntimeTargeting?: boolean = false;
-  private isRuntimeSetup = false;
+  private isRuntimeSetup: boolean = false;
 
   /**
    * Initializes the instrumentation module definition using the static metadata.
@@ -75,9 +75,25 @@ export abstract class InstrumentationBase extends _InstrumentationBase {
     return new InstrumentationNodeModuleDefinition(
       metadata.targetLibrary,
       metadata.targetVersions,
-      (moduleExports, moduleVersion) => this.setup(moduleExports, moduleVersion),
+      (moduleExports, moduleVersion) => this.wrappedSetup(moduleExports, moduleVersion),
       (moduleExports, moduleVersion) => this.teardown(moduleExports, moduleVersion)
     );
+  }
+
+  /**
+   * Wrapped setup method that prevents duplicate execution
+   */
+  private wrappedSetup(moduleExports: any, moduleVersion?: string): any {
+    // Check if setup was already completed to avoid duplicate setup
+    const useRuntimeTargeting = (this.constructor as typeof InstrumentationBase).useRuntimeTargeting;
+    if (useRuntimeTargeting) {
+      console.debug(`[${this.instrumentationName}] wrappedSetup() called for runtime targeting, skipping OpenTelemetry module hook`);
+      return moduleExports;
+    }
+
+    console.debug(`[${this.instrumentationName}] calling setup() via OpenTelemetry module hook`);
+    const result = this.setup(moduleExports, moduleVersion);
+    return result;
   }
 
   /**
@@ -162,17 +178,22 @@ export abstract class InstrumentationBase extends _InstrumentationBase {
    * This method uses robust module resolution and calls the setup method directly.
    */
   setupRuntimeTargeting(): void {
+    console.debug('[instrumentation-base] setupRuntimeTargeting called for:', this.instrumentationName);
+
     if (this.isRuntimeSetup) {
+      console.debug('[instrumentation-base] runtime setup already done, skipping');
       return;
     }
 
     const moduleExports = this.getTargetModuleExports();
     if (!moduleExports) {
+      console.debug('[instrumentation-base] no module exports found for runtime targeting');
       return;
     }
 
+    console.debug('[instrumentation-base] calling setup() from runtime targeting');
     this.setup(moduleExports);
-    this.isRuntimeSetup = true;
+    console.debug('[instrumentation-base] runtime setup complete');
   }
 
   /**
