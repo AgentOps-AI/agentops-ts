@@ -8,11 +8,12 @@ import { Resource } from '@opentelemetry/resources';
 import { Config, LogLevel } from './types';
 import { BearerToken } from './api';
 import { InstrumentationBase } from './instrumentation/base';
+import { logToConsole } from './log';
 
 const debug = require('debug')('agentops:tracing');
 
 const MAX_EXPORT_BATCH_SIZE = 1; // Export immediately
-const SCHEDULED_DELAY_MILLIS = 500; // Check for spans every 500ms
+const SCHEDULED_DELAY_MILLIS = 0; // No delay between exports
 const EXPORT_TIMEOUT_MILLIS = 5000; // 5 second timeout
 
 // TODO make this part of config
@@ -42,8 +43,7 @@ class Exporter extends OTLPTraceExporter {
    */
   private printExportedTraceURL(traceId: string): void {
     const url = `${DASHBOARD_URL}/sessions?trace_id=${traceId}`;
-    // TODO better log handler.
-    console.log(`\x1b[34m🖇 AgentOps: Session Replay for trace: ${url}\x1b[0m`);
+    logToConsole(`Session Replay for trace: ${url}`);
   }
 
   /**
