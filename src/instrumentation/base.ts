@@ -185,6 +185,7 @@ export abstract class InstrumentationBase extends _InstrumentationBase {
     debug(`starting runtime targeting setup for ${this.getIdentifier()}`);
     const moduleExports = this.getTargetModuleExports();
     this.setup(moduleExports);
+    this.isRuntimeSetup = true;
   }
 
   /**
