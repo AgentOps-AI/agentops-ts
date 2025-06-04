@@ -32,7 +32,7 @@ export class OpenAIAgentsInstrumentation extends InstrumentationBase {
       const globalProvider = getGlobalTraceProvider();
       globalProvider.registerProcessor(processor);
     } catch (error) {
-      console.error('[openai-agents] failed: ', error);
+      console.error('[agentops.instrumentation.openai-agents] failed: ', error);
     }
 
     return moduleExports;

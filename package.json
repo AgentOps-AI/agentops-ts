@@ -27,9 +27,11 @@
     "@opentelemetry/exporter-trace-otlp-http": "^0.202.0",
     "@opentelemetry/instrumentation": "^0.52.1",
     "@opentelemetry/sdk-node": "^0.52.1",
-    "@opentelemetry/semantic-conventions": "^1.25.1"
+    "@opentelemetry/semantic-conventions": "^1.25.1",
+    "debug": "^4.4.1"
   },
   "devDependencies": {
+    "@types/debug": "^4.1.12",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.17.57",
     "@typescript-eslint/eslint-plugin": "^7.0.0",

@@ -3,6 +3,8 @@ import { getPackageVersion } from '../attributes';
 import { AVAILABLE_INSTRUMENTORS } from './index';
 import { InstrumentationBase } from './base';
 
+const debug = require('debug')('agentops:instrumentation:registry');
+
 
 /**
  * Registry for managing instrumentation discovery, registration, and lifecycle.
@@ -36,17 +38,15 @@ export class InstrumentationRegistry {
 
         // For instrumentors using runtime targeting, create instance and trigger setup immediately
         if (instrumentorClass.useRuntimeTargeting) {
-          console.debug(`[agentops.registry] ${instrumentorClass.identifier} uses runtime targeting`);
           const existingInstance = this.enabledInstrumentors.get(instrumentorClass.identifier);
           if (!existingInstance) {
-            console.debug(`[agentops.registry] no existing instance, creating new one for ${instrumentorClass.identifier}`);
+            // TODO don't hardcode package name
             const instance = this.createInstance(instrumentorClass, 'agentops');
             if (instance) {
-              console.debug(`[agentops.registry] calling setupRuntimeTargeting for ${instrumentorClass.identifier}`);
               instance.setupRuntimeTargeting();
             }
           } else {
-            console.debug(`[agentops.registry] existing instance found for ${instrumentorClass.identifier}, skipping runtime setup`);
+            debug(`found existing instance for ${instrumentorClass.identifier}, skipping setup`);
           }
         }
       }
@@ -60,7 +60,7 @@ export class InstrumentationRegistry {
    */
   register(instrumentorClass: typeof InstrumentationBase): void {
     this.instrumentors.set(instrumentorClass.identifier, instrumentorClass);
-    console.debug(`[agentops.registry] registered ${instrumentorClass.identifier}`);
+    debug(`registered instrumentor ${instrumentorClass.identifier}`);
   }
 
   /**
@@ -89,7 +89,6 @@ export class InstrumentationRegistry {
    * @returns The created instrumentation instance, or null if creation failed
    */
   private createInstance(instrumentorClass: typeof InstrumentationBase, packageName: string): InstrumentationBase | undefined {
-    // Check if instance already exists
     const existingInstance = this.enabledInstrumentors.get(instrumentorClass.identifier);
     if (existingInstance) {
       return existingInstance;
@@ -98,7 +97,7 @@ export class InstrumentationRegistry {
     try {
       const instance = new (instrumentorClass as any)(packageName, this.packageVersion, {});
       this.enabledInstrumentors.set(instrumentorClass.identifier, instance);
-      console.debug(`[agentops.registry] instantiated ${instrumentorClass.identifier}`);
+      debug(`instantiated ${instrumentorClass.identifier}`);
       return instance;
     } catch (error) {
       console.warn(`[agentops.registry] Failed to create instrumentor ${instrumentorClass.identifier}:`, error);
@@ -125,7 +124,7 @@ export class InstrumentationRegistry {
       if (!instrumentor && instrumentorClass.available) {
         instrumentor = this.createInstance(instrumentorClass, serviceName);
       }
-      
+
       if (instrumentor) {
         instrumentors.push(instrumentor);
       }

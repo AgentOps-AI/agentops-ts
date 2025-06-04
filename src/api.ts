@@ -1,3 +1,4 @@
+const debug = require('debug')('agentops:api');
 
 // Request schema for /v3/auth/token endpoint
 export interface TokenSchema {
@@ -56,7 +57,7 @@ export class API {
    */
   private async fetch<T>(path: string, method: 'GET' | 'POST', body?: any): Promise<T> {
     const url = `${this.endpoint}${path}`;
-    console.debug(`[agentops.api] ${method} ${url}`);
+    debug(`${method} ${url}`);
 
     const response = await fetch(url, {
       method: method,
@@ -71,7 +72,7 @@ export class API {
       throw new Error(`Request failed: ${response.status} ${response.statusText}`);
     }
 
-    console.debug(`[agentops.api] ${response.status}`);
+    debug(`${response.status}`);
     return await response.json() as T;
   }
 

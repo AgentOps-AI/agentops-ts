@@ -6,6 +6,8 @@ import { Config, LogLevel } from './types';
 import { createGlobalResourceAttributes } from './attributes';
 import { API, TokenResponse, BearerToken } from './api';
 
+const debug = require('debug')('agentops:client');
+
 /**
  * Main AgentOps SDK client class.
  *
@@ -108,7 +110,7 @@ export class Client {
     this.setupExitHandlers();
 
     this._initialized = true;
-    console.debug('[agentops] initialized');
+    debug('[agentops] initialized');
   }
 
   /**
@@ -144,7 +146,7 @@ export class Client {
 
     await this.sdk.shutdown();
     this._initialized = false;
-    console.debug('[agentops] shutdown');
+    debug('[agentops] shutdown');
   }
 
   /**
@@ -193,7 +195,7 @@ export class Client {
   }
 
   /**
-   * Configures OpenTelemetry diagnostic logging and console.debug visibility based on the current log level.
+   * Configures OpenTelemetry diagnostic logging and debug visibility based on the current log level.
    */
   private configureLogging(): void {
     const logLevel = this.config.logLevel!;
@@ -205,9 +207,6 @@ export class Client {
     const diagLevel = levelMap[logLevel] || DiagLogLevel.ERROR;
 
     diag.setLogger(new DiagConsoleLogger(), diagLevel);
-    if (logLevel === 'debug') {
-      console.debug = console.log;
-    }
   }
 }
 

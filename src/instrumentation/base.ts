@@ -6,6 +6,8 @@ import {
 } from '@opentelemetry/instrumentation';
 import { InstrumentorMetadata } from '../types';
 
+const debug = require('debug')('agentops:instrumentation:base');
+
 
 /**
  * Utility function to resolve module exports robustly from the current working directory.
@@ -75,25 +77,9 @@ export abstract class InstrumentationBase extends _InstrumentationBase {
     return new InstrumentationNodeModuleDefinition(
       metadata.targetLibrary,
       metadata.targetVersions,
-      (moduleExports, moduleVersion) => this.wrappedSetup(moduleExports, moduleVersion),
+      (moduleExports, moduleVersion) => this._setup(moduleExports, moduleVersion),
       (moduleExports, moduleVersion) => this.teardown(moduleExports, moduleVersion)
     );
-  }
-
-  /**
-   * Wrapped setup method that prevents duplicate execution
-   */
-  private wrappedSetup(moduleExports: any, moduleVersion?: string): any {
-    // Check if setup was already completed to avoid duplicate setup
-    const useRuntimeTargeting = (this.constructor as typeof InstrumentationBase).useRuntimeTargeting;
-    if (useRuntimeTargeting) {
-      console.debug(`[${this.instrumentationName}] wrappedSetup() called for runtime targeting, skipping OpenTelemetry module hook`);
-      return moduleExports;
-    }
-
-    console.debug(`[${this.instrumentationName}] calling setup() via OpenTelemetry module hook`);
-    const result = this.setup(moduleExports, moduleVersion);
-    return result;
   }
 
   /**
@@ -103,6 +89,10 @@ export abstract class InstrumentationBase extends _InstrumentationBase {
    */
   static get identifier(): string {
     return this.metadata.name;
+  }
+
+  getIdentifier(): string {
+    return (this.constructor as typeof InstrumentationBase).identifier;
   }
 
   /**
@@ -117,6 +107,15 @@ export abstract class InstrumentationBase extends _InstrumentationBase {
     } catch (error) {
       return false;
     }
+  }
+
+  /**
+   * Gets the OpenTelemetry tracer for this instrumentation.
+   *
+   * @returns The tracer instance
+   */
+  public get tracer() {
+    return trace.getTracer(this.instrumentationName, this.instrumentationVersion);
   }
 
   /**
@@ -151,24 +150,24 @@ export abstract class InstrumentationBase extends _InstrumentationBase {
   }
 
   /**
-   * Gets the OpenTelemetry tracer for this instrumentation.
-   *
-   * @returns The tracer instance
+   * Wrapped setup method that prevents duplicate execution
    */
-  public get tracer() {
-    return trace.getTracer(this.instrumentationName, this.instrumentationVersion);
+  private _setup(moduleExports: any, moduleVersion?: string): any {
+    if ((this.constructor as typeof InstrumentationBase).useRuntimeTargeting) {
+      debug(`deferring setup() for runtime targeting for ${this.getIdentifier()}`);
+      return moduleExports;
+    }
+
+    return this.setup(moduleExports, moduleVersion);
   }
 
   /**
-   * Gets the target module exports for runtime targeting.
-   * Returns null if runtime targeting is not enabled or module is not available.
+   * Gets the target module exports.
+   *
+   * This mimics the built-in OpenTelemetry behavior of resolving the module exports
+   * and lets us use them with runtime targeting.
    */
   private getTargetModuleExports(): any {
-    const useRuntimeTargeting = (this.constructor as typeof InstrumentationBase).useRuntimeTargeting;
-    if (!useRuntimeTargeting) {
-      return null;
-    }
-
     const metadata = (this.constructor as typeof InstrumentationBase).metadata;
     return getModuleExports(metadata.targetLibrary);
   }
@@ -179,17 +178,12 @@ export abstract class InstrumentationBase extends _InstrumentationBase {
    */
   setupRuntimeTargeting(): void {
     if (this.isRuntimeSetup) {
-      console.debug('[instrumentation-base] runtime setup already done, skipping');
+      debug('runtime targeting already set up, skipping');
       return;
     }
 
+    debug(`starting runtime targeting setup for ${this.getIdentifier()}`);
     const moduleExports = this.getTargetModuleExports();
-    if (!moduleExports) {
-      console.debug('[instrumentation-base] no module exports found for runtime targeting');
-      return;
-    }
-
-    console.debug('[instrumentation-base] calling setup() from runtime targeting');
     this.setup(moduleExports);
   }
 
@@ -201,11 +195,8 @@ export abstract class InstrumentationBase extends _InstrumentationBase {
       return;
     }
 
+    debug(`starting runtime targeting teardown for ${this.getIdentifier()}`);
     const moduleExports = this.getTargetModuleExports();
-    if (!moduleExports) {
-      return;
-    }
-
     this.teardown(moduleExports);
     this.isRuntimeSetup = false;
   }
