@@ -42,6 +42,10 @@
 
 A TypeScript implementation of the AgentOps SDK that exports GenAI conventional OpenTelemetry data to standards-compliant OTel collectors. This SDK provides automatic instrumentation for multiple agent frameworks and AI libraries.
 
+<div align="center">
+  <video src="https://github.com/user-attachments/assets/dfb4fa8d-d8c4-4965-9ff6-5b8514c1c22f" width="650" autoplay loop muted></video>
+</div>
+
 ## Features
 
 - 🔌 **Plugin Architecture**: Dynamic loading and configuration of instrumentors
