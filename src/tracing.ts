@@ -4,8 +4,8 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-node';
 import { SpanExporter, ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { ExportResult, ExportResultCode } from '@opentelemetry/core';
+import { Resource } from '@opentelemetry/resources';
 import { Config, LogLevel } from './types';
-import { createGlobalResourceAttributes } from './attributes';
 import { BearerToken } from './api';
 import { InstrumentationBase } from './instrumentation/base';
 
@@ -108,14 +108,14 @@ export class TracingCore {
    * @param config - AgentOps configuration
    * @param authToken - Bearer token for authenticating with AgentOps API
    * @param instrumentations - Array of AgentOps instrumentations to enable
+   * @param resource - Pre-created resource with async attributes resolved
    */
   constructor(
     private config: Config,
     private authToken: BearerToken,
-    private instrumentations: InstrumentationBase[]
+    private instrumentations: InstrumentationBase[],
+    resource: Resource
   ) {
-    this.configureLogging();
-
     this.exporter = new Exporter({
       url: `${config.otlpEndpoint}/v1/traces`,
       headers: {
@@ -130,11 +130,13 @@ export class TracingCore {
     });
 
     this.sdk = new OpenTelemetryNodeSDK({
-      resource: createGlobalResourceAttributes(this.config.serviceName!),
+      resource: resource,
       instrumentations: instrumentations,
       spanProcessor: this.processor,
     });
 
+    // Configure logging after resource attributes are settled
+    this.configureLogging();
     this.sdk.start();
     debug('tracing core initialized');
   }

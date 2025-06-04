@@ -3,6 +3,7 @@ import { InstrumentationBase } from './instrumentation/base';
 import { Config, LogLevel } from './types';
 import { API, TokenResponse, BearerToken } from './api';
 import { TracingCore } from './tracing';
+import { getGlobalResource } from './attributes';
 
 const debug = require('debug')('agentops:client');
 
@@ -82,10 +83,12 @@ export class Client {
     }
     this.api = new API(this.config.apiKey, this.config.apiEndpoint!);
 
+    const resource = await getGlobalResource(this.config.serviceName!);
     this.core = new TracingCore(
       this.config,
       await this.getAuthToken(),
-      this.registry.getActiveInstrumentors(this.config.serviceName!)
+      this.registry.getActiveInstrumentors(this.config.serviceName!),
+      resource
     );
     this.setupExitHandlers();
 

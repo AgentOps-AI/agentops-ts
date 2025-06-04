@@ -21,13 +21,18 @@ export function getPackageVersion(): string {
   * Creates a global resource attributes object for OpenTelemetry SDK.
   *
   * This includes service name and version, along with any detected resources.
+  * Waits for async resource detection to complete to avoid accessing attributes
+  * before they are settled.
   *
   * @param serviceName - The name of the service being instrumented
-  * @returns A Resource object containing global attributes
+  * @returns A Promise resolving to a Resource object containing global attributes
  */
-export function createGlobalResourceAttributes(serviceName: string): Resource {
+export async function getGlobalResource(serviceName: string): Promise<Resource> {
+  const detectedResource = detectResourcesSync();
+  await detectedResource.waitForAsyncAttributes?.();
+
   return new Resource({
-    ...detectResourcesSync().attributes,
+    ...detectedResource.attributes,
     [SEMRESATTRS_SERVICE_NAME]: serviceName,
     [SEMRESATTRS_SERVICE_VERSION]: getPackageVersion()
   });
