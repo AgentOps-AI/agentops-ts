@@ -178,8 +178,6 @@ export abstract class InstrumentationBase extends _InstrumentationBase {
    * This method uses robust module resolution and calls the setup method directly.
    */
   setupRuntimeTargeting(): void {
-    console.debug('[instrumentation-base] setupRuntimeTargeting called for:', this.instrumentationName);
-
     if (this.isRuntimeSetup) {
       console.debug('[instrumentation-base] runtime setup already done, skipping');
       return;
@@ -193,7 +191,6 @@ export abstract class InstrumentationBase extends _InstrumentationBase {
 
     console.debug('[instrumentation-base] calling setup() from runtime targeting');
     this.setup(moduleExports);
-    console.debug('[instrumentation-base] runtime setup complete');
   }
 
   /**
