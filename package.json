@@ -1,7 +1,7 @@
 {
   "name": "agentops",
   "version": "0.1.0",
-  "description": "TypeScript implementation of the AgentOps SDK with OpenTelemetry GenAI instrumentation",
+  "description": "TypeScript implementation of the AgentOps SDK",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -9,7 +9,8 @@
     "dev": "tsc --watch",
     "test": "jest",
     "lint": "eslint src/**/*.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "opentelemetry",
@@ -18,8 +19,28 @@
     "agents",
     "observability"
   ],
-  "author": "",
+  "author": "AgentOps",
+  "homepage": "https://agentops.ai",
+  "contributors": [
+    {
+      "name": "Travis Dent",
+      "email": "tcdent@gmail.com"
+    },
+    {
+      "name": "Braelyn Boynton",
+      "email": "bboynton97@gmail.com"
+    }
+  ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AgentOps-AI/agentops-ts.git"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "dependencies": {
     "@openai/agents": "^0.0.1",
     "@opentelemetry/api": "^1.8.0",
