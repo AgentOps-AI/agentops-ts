@@ -32,6 +32,8 @@ export class BearerToken {
 }
 
 export class API {
+  private bearerToken: BearerToken | null = null;
+
   /**
    * Creates a new API client instance.
    *
@@ -48,31 +50,61 @@ export class API {
   }
 
   /**
+   * Set the bearer token for authenticated requests
+   */
+  setBearerToken(token: BearerToken): void {
+    this.bearerToken = token;
+  }
+
+  /**
    * Fetch data from the API using the specified path and method.
    *
    * @param path - The API endpoint path
    * @param method - The HTTP method to use (GET or POST)
    * @param body - The request body for POST requests
+   * @param headers - Additional headers to include in the request
    * @returns The parsed JSON response
    */
-  private async fetch<T>(path: string, method: 'GET' | 'POST', body?: any): Promise<T> {
+  private async fetch<T>(
+    path: string, 
+    method: 'GET' | 'POST', 
+    body?: any, 
+    headers?: Record<string, string>
+  ): Promise<T> {
     const url = `${this.endpoint}${path}`;
-    debug(`${method} ${url}`);
+
+    const defaultHeaders: Record<string, string> = {
+      'User-Agent': this.userAgent,
+      'Content-Type': 'application/json',
+    };
+
+    // Add authorization header if bearer token is available
+    if (this.bearerToken) {
+      defaultHeaders['Authorization'] = this.bearerToken.getAuthHeader();
+    }
+
+    // Merge with additional headers
+    const finalHeaders = { ...defaultHeaders, ...headers };
 
     const response = await fetch(url, {
       method: method,
-      headers: {
-        'User-Agent': this.userAgent,
-        'Content-Type': 'application/json',
-      },
+      headers: finalHeaders,
       body: body ? JSON.stringify(body) : undefined
     });
 
     if (!response.ok) {
-      throw new Error(`Request failed: ${response.status} ${response.statusText}`);
+      let errorMessage = `Request failed: ${response.status} ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } catch {
+        // Ignore JSON parsing errors
+      }
+      throw new Error(errorMessage);
     }
 
-    debug(`${response.status}`);
     return await response.json() as T;
   }
 
@@ -83,5 +115,25 @@ export class API {
    */
   async authenticate(): Promise<TokenResponse> {
     return this.fetch<TokenResponse>('/v3/auth/token', 'POST', { api_key: this.apiKey });
+  }
+
+  /**
+   * Upload log content to the API.
+   *
+   * @param logContent - The log content to upload
+   * @param traceId - The trace ID to associate with the logs
+   * @returns A promise that resolves when the upload is complete
+   */
+  async uploadLogFile(logContent: string, traceId: string): Promise<{ id: string }> {
+    if (!this.bearerToken) {
+      throw new Error('Authentication required. Bearer token not set.');
+    }
+
+    return this.fetch<{ id: string }>(
+      '/v4/logs/upload/',
+      'POST',
+      logContent,
+      { 'Trace-Id': traceId }
+    );
   }
 }

@@ -8,7 +8,6 @@ import { Resource } from '@opentelemetry/resources';
 import { Config, LogLevel } from './types';
 import { BearerToken } from './api';
 import { InstrumentationBase } from './instrumentation/base';
-import { logToConsole } from './log';
 
 const debug = require('debug')('agentops:tracing');
 
@@ -43,7 +42,7 @@ class Exporter extends OTLPTraceExporter {
    */
   private printExportedTraceURL(traceId: string): void {
     const url = `${DASHBOARD_URL}/sessions?trace_id=${traceId}`;
-    logToConsole(`Session Replay for trace: ${url}`);
+    console.log(`\x1b[34m🖇  AgentOps: Session Replay for trace: ${url}\x1b[0m`);
   }
 
   /**
