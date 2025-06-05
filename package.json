@@ -34,7 +34,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/AgentOps-AI/agentops-ts.git"
+    "url": "git+https://github.com/AgentOps-AI/agentops-ts.git"
   },
   "files": [
     "dist",
