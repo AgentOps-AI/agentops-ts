@@ -129,33 +129,48 @@ The example will:
 3. Execute a sample query
 4. Export telemetry data to the AgentOps platform
 
-## Creating Custom Instrumentors
+## OpenAI Agents Support
 
-Extend the `InstrumentationBase` class to create framework-specific instrumentors:
+AgentOps provides first-class support for the [OpenAI Agents SDK](https://github.com/openai/openai-agents-js/), automatically instrumenting:
+
+- **Agent Lifecycle**: Track agent creation, execution, and completion
+- **LLM Generation**: Capture model requests, responses, and token usage
+- **Function Calls**: Monitor tool usage and function execution
+- **Audio Processing**: Observe speech-to-text and text-to-speech operations
+- **Handoffs**: Track agent-to-agent communication and workflow transitions
+- **Custom Events**: Capture domain-specific agent behaviors
+
+### Automatic Instrumentation
+
+Simply initialize AgentOps before using the OpenAI Agents SDK:
 
 ```typescript
-import { InstrumentationBase } from 'agentops';
+import { agentops } from 'agentops';
+import { Agent, run } from '@openai/agents';
 
-export class MyFrameworkInstrumentation extends InstrumentationBase {
-  static readonly metadata = {
-    name: 'my-framework',
-    version: '1.0.0',
-    description: 'Instrumentation for My Framework',
-    targetLibrary: 'my-framework',
-    targetVersions: ['>=1.0.0'],
-  };
+// Initialize AgentOps first
+await agentops.init();
 
-  protected setup(moduleExports: any, moduleVersion?: string): any {
-    // Apply instrumentation patches to the module
-    // Store original functions, wrap them with tracing, etc.
-    return moduleExports;
-  }
+// Create your agent with tools and instructions
+const agent = new Agent({
+  name: 'My Assistant',
+  instructions: 'You are a helpful assistant.',
+  tools: [/* your tools */],
+});
 
-  protected teardown(moduleExports: any, moduleVersion?: string): any {
-    // Clean up instrumentation patches
-    return moduleExports;
-  }
-}
+// Run the agent - instrumentation happens automatically
+const result = await run(agent, "Hello, how can you help me?");
+console.log(result.finalOutput);
+```
+
+All agent interactions will be automatically captured and exported to your AgentOps dashboard with full OpenTelemetry semantic conventions.
+
+## Debug Logging
+
+To see detailed instrumentation and tracing logs:
+
+```bash
+DEBUG=agentops:* node your-app.js
 ```
 
 ## Why AgentOps? 🤔
