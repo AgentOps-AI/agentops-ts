@@ -4,6 +4,7 @@ import { Config, LogLevel } from './types';
 import { API, TokenResponse, BearerToken } from './api';
 import { TracingCore } from './tracing';
 import { getGlobalResource } from './attributes';
+import { loggingService } from './logging/service';
 
 const debug = require('debug')('agentops:client');
 
@@ -83,10 +84,17 @@ export class Client {
     }
     this.api = new API(this.config.apiKey, this.config.apiEndpoint!);
 
+    // Get auth token and set it on the API instance
+    const authToken = await this.getAuthToken();
+    this.api.setBearerToken(authToken);
+
+    // Initialize logging service
+    loggingService.initialize(this.api);
+
     const resource = await getGlobalResource(this.config.serviceName!);
     this.core = new TracingCore(
       this.config,
-      await this.getAuthToken(),
+      authToken,
       this.registry.getActiveInstrumentors(this.config.serviceName!),
       resource
     );
@@ -126,6 +134,9 @@ export class Client {
     if (!this.initialized) {
       return;
     }
+
+    // Disable logging service
+    loggingService.disable();
 
     if(this.core) {
       await this.core.shutdown();
@@ -178,6 +189,18 @@ export class Client {
     }
 
     return this.authToken;
+  }
+
+  /**
+   * Upload captured console logs to the AgentOps API.
+   *
+   * @param traceId - The trace ID to associate with the logs
+   * @returns Promise resolving to upload result with ID, or null if no logs to upload
+   * @throws {Error} When the SDK is not initialized or upload fails
+   */
+  async uploadLogFile(traceId: string): Promise<{ id: string } | null> {
+    this.ensureInitialized();
+    return loggingService.uploadLogs(traceId);
   }
 
 }
