@@ -1,5 +1,5 @@
+import { Client } from '../client';
 import { InstrumentorMetadata } from '../types';
-import { getPackageVersion } from '../attributes';
 import { AVAILABLE_INSTRUMENTORS } from './index';
 import { InstrumentationBase } from './base';
 
@@ -13,9 +13,9 @@ const debug = require('debug')('agentops:instrumentation:registry');
  * libraries are present, and provides methods to create and manage active instances.
  */
 export class InstrumentationRegistry {
+  private client: Client;
   private instrumentors = new Map<string, typeof InstrumentationBase>();
   private enabledInstrumentors = new Map<string, InstrumentationBase>();
-  private readonly packageVersion: string;
 
   /**
    * Creates a new instrumentation registry.
@@ -23,8 +23,8 @@ export class InstrumentationRegistry {
    * Automatically discovers and registers all available instrumentations
    * from the AVAILABLE_INSTRUMENTORS list.
    */
-  constructor() {
-    this.packageVersion = getPackageVersion();
+  constructor(client: Client) {
+    this.client = client;
   }
 
   /**
@@ -40,8 +40,7 @@ export class InstrumentationRegistry {
         if (instrumentorClass.useRuntimeTargeting) {
           const existingInstance = this.enabledInstrumentors.get(instrumentorClass.identifier);
           if (!existingInstance) {
-            // TODO don't hardcode package name
-            const instance = this.createInstance(instrumentorClass, 'agentops');
+            const instance = this.createInstance(instrumentorClass);
             if (instance) {
               instance.setupRuntimeTargeting();
             }
@@ -50,7 +49,7 @@ export class InstrumentationRegistry {
           }
         }
       }
-    }
+    }``
   }
 
   /**
@@ -88,14 +87,14 @@ export class InstrumentationRegistry {
    * @param packageName - Name of the service/package being instrumented
    * @returns The created instrumentation instance, or null if creation failed
    */
-  private createInstance(instrumentorClass: typeof InstrumentationBase, packageName: string): InstrumentationBase | undefined {
+  private createInstance(instrumentorClass: typeof InstrumentationBase): InstrumentationBase | undefined {
     const existingInstance = this.enabledInstrumentors.get(instrumentorClass.identifier);
     if (existingInstance) {
       return existingInstance;
     }
 
     try {
-      const instance = new (instrumentorClass as any)(packageName, this.packageVersion, {});
+      const instance = new (instrumentorClass as any)(this.client);
       this.enabledInstrumentors.set(instrumentorClass.identifier, instance);
       debug(`instantiated ${instrumentorClass.identifier}`);
       return instance;
@@ -114,7 +113,7 @@ export class InstrumentationRegistry {
    * @param serviceName - Name of the service to create instrumentations for
    * @returns Array of active instrumentation instances
    */
-  getActiveInstrumentors(serviceName: string): InstrumentationBase[] {
+  getActiveInstrumentors(): InstrumentationBase[] {
     const available: (typeof InstrumentationBase)[] = this.getAvailable();
     const instrumentors: InstrumentationBase[] = [];
 
@@ -122,7 +121,7 @@ export class InstrumentationRegistry {
       // Check if already enabled, otherwise create new instance
       let instrumentor = this.enabledInstrumentors.get(instrumentorClass.identifier);
       if (!instrumentor && instrumentorClass.available) {
-        instrumentor = this.createInstance(instrumentorClass, serviceName);
+        instrumentor = this.createInstance(instrumentorClass);
       }
 
       if (instrumentor) {
