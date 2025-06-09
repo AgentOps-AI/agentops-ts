@@ -25,7 +25,25 @@ import {
   AttributeMap,
   IndexedAttributeMap
 } from '../../attributes';
-import { debug } from './index';
+
+
+// Store API request parameters globally
+const apiRequestMap = new Map<string, any>();
+
+/**
+ * Store API parameters for a given response ID
+ */
+function storeApiParams(responseId: string, params: any): void {
+  apiRequestMap.set(responseId, params);
+
+}
+
+/**
+ * Get API parameters for a given response ID
+ */
+function getApiParamsForResponse(responseId: string): any {
+  return apiRequestMap.get(responseId);
+}
 
 /**
  * OpenAI Agents ResponseSpanData type definition (from @openai/agents-core/dist/tracing/spans):
@@ -83,6 +101,12 @@ export interface AgentOpsResponseSpanData extends ResponseSpanData {
     completion_tokens?: number;
     total_tokens?: number;
   };
+  agentops_temperature?: number;
+  agentops_top_p?: number;
+  agentops_max_output_tokens?: number;
+  agentops_instructions?: string;
+  agentops_tool_choice?: string;
+  agentops_parallel_tool_calls?: boolean;
 }
 
 const AGENTOPS_MODEL_ATTRIBUTES: AttributeMap = {
@@ -144,53 +168,136 @@ export function convertEnhancedResponseSpan(data: AgentOpsResponseSpanData): Att
     Object.assign(attributes, extractAttributesFromMapping(data.agentops_usage, AGENTOPS_USAGE_ATTRIBUTES));
   }
 
+  if (data.agentops_temperature !== undefined) {
+    attributes['agentops_temperature'] = String(data.agentops_temperature);
+  }
+
+  if (data.agentops_top_p !== undefined) {
+    attributes['agentops_top_p'] = String(data.agentops_top_p);
+  }
+
+  if (data.agentops_max_output_tokens !== undefined) {
+    attributes['agentops_max_output_tokens'] = String(data.agentops_max_output_tokens);
+  }
+
+  if (data.agentops_instructions) {
+    attributes['agentops_instructions'] = data.agentops_instructions;
+  }
+
+  if (data.agentops_tool_choice) {
+    attributes['agentops_tool_choice'] = data.agentops_tool_choice;
+  }
+
+  if (data.agentops_parallel_tool_calls !== undefined) {
+    attributes['agentops_parallel_tool_calls'] = String(data.agentops_parallel_tool_calls);
+  }
+
   return attributes;
 }
 
 /**
-   * Patches the OpenAI Responses model to capture enhanced generation data.
-   *
-   * This method intercepts OpenAI model creation and enhances response spans
-   * with complete generation data (model, input messages, output content, usage)
-   * using the AgentOps response span format for better observability.
+ * Patches the OpenAI provider to capture model names.
+ * This is the main patching function that intercepts getModel calls.
    */
-export function patchOpenAIResponsesModel(exporter: any, moduleExports: any): void {
+export function patchOpenAIProvider(exporter: any, moduleExports: any): void {
+
+  
   if (!moduleExports.OpenAIProvider) {
-    debug('OpenAIProvider not found, skipping response model patching');
+
     return;
   }
 
   const OriginalProvider = moduleExports.OpenAIProvider;
+
+  
+  // Patch the getModel method
   const originalGetModel = OriginalProvider.prototype.getModel;
+  if (typeof originalGetModel === 'function') {
 
-  // Patch the getModel method to intercept model instances
+
   OriginalProvider.prototype.getModel = async function(...args: any[]) {
-    const model = await originalGetModel.call(this, ...args);
-    if (model.constructor.name === 'OpenAIResponsesModel') {
-      for (const methodName of ['getResponse', 'getStreamedResponse']) {
-        if (typeof model[methodName] === 'function') {
-          const originalMethod = model[methodName].bind(model);
 
-          model[methodName] = async function(...args: any[]) {
+
+      
+    const model = await originalGetModel.call(this, ...args);
+      
+      // Store the model name on the instance
+      if (args[0] && typeof args[0] === 'string') {
+ 
+        (model as any)._agentopsModelName = args[0];
+      }
+      
+      return model;
+    };
+  }
+
+}
+
+/**
+ * Patches the OpenAIResponsesModel class directly to capture model names.
+ * This patches the class prototype to handle instances created before instrumentation.
+ */
+export function patchOpenAIResponsesModelClass(exporter: any, moduleExports: any): void {
+
+  
+  if (!moduleExports.OpenAIResponsesModel) {
+
+    return;
+  }
+
+  const ResponsesModel = moduleExports.OpenAIResponsesModel;
+
+  
+  // Patch the prototype methods
+      for (const methodName of ['getResponse', 'getStreamedResponse']) {
+    const originalMethod = ResponsesModel.prototype[methodName];
+    if (typeof originalMethod === 'function') {
+
+
+      ResponsesModel.prototype[methodName] = async function(...args: any[]) {
             const request = args[0];
-            const result = await originalMethod(...args);
+
+        
+        // Get model from stored value (set by getModel patching)
+        const modelFromStored = (this as any)._agentopsModelName;
+
+        
+        const result = await originalMethod.call(this, ...args);
+
 
             try {
-              const data = createEnhancedResponseSpanData(request, result);
+          // Get API parameters from our storage
+          const apiParams = result.responseId ? getApiParamsForResponse(result.responseId) : null;
+
+          
+          // Try to get model name from various sources
+          const modelName = apiParams?.model || modelFromStored || request?.model || result?.model || 'unknown';
+
+          
+          const data = createEnhancedResponseSpanData(request, result, modelName);
+          
+          // Include API parameters in the enhanced data
+          if (apiParams) {
+            data.agentops_temperature = apiParams.temperature;
+            data.agentops_top_p = apiParams.top_p;
+            data.agentops_max_output_tokens = apiParams.max_output_tokens;
+            data.agentops_instructions = apiParams.instructions;
+            data.agentops_tool_choice = apiParams.tool_choice;
+            data.agentops_parallel_tool_calls = apiParams.parallel_tool_calls;
+          }
+          
               exporter.storeEnhancedResponseData(result.responseId, data);
-              debug(`stored enhanced response data for ${result.responseId}`);
+
             } catch (error) {
-              debug('failed to store enhanced response data:', error);
+          console.warn('Failed to store enhanced response data:', error);
             }
 
             return result;
           };
-        }
       }
     }
 
-    return model;
-  };
+
 }
 
 /**
@@ -200,7 +307,8 @@ export function patchOpenAIResponsesModel(exporter: any, moduleExports: any): vo
  * AgentOpsResponseSpanData structure that includes both original response
  * data and enhanced generation data for complete observability.
  */
-export function createEnhancedResponseSpanData(request: any, result: any): AgentOpsResponseSpanData {
+export function createEnhancedResponseSpanData(request: any, result: any, modelNameFromPatch?: string): AgentOpsResponseSpanData {
+
   const inputMessages = [];
 
   if (request.input && Array.isArray(request.input)) {
@@ -245,11 +353,15 @@ export function createEnhancedResponseSpanData(request: any, result: any): Agent
     }
   }
 
+  // Determine the model name with priority: request.model > result.model > modelNameFromPatch
+  const finalModelName = request.model || result.model || modelNameFromPatch || 'unknown';
+
+
   const enhancedData: AgentOpsResponseSpanData = {
     type: 'response',
     response_id: result.responseId,
     _input: request.input,
-    agentops_model: request.model || result.model || null,
+    agentops_model: finalModelName,
     agentops_input_messages: inputMessages,
     agentops_output_messages: outputMessages,
     agentops_function_calls: functionCalls,

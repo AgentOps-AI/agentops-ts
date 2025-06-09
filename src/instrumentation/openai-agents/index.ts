@@ -1,11 +1,12 @@
-import { BatchTraceProcessor, addTraceProcessor, setTracingDisabled } from '@openai/agents';
+import { trace, context, SpanStatusCode } from '@opentelemetry/api';
+import { OpenAIAgentsTracingExporter } from './exporter';
+import { patchAgent } from './agent';
+import { patchOpenAIProvider, patchOpenAIResponsesModelClass } from './response';
+
 import { InstrumentationBase } from '../base';
 import { InstrumentorMetadata } from '../../types';
-import { OpenAIAgentsTracingExporter } from './exporter';
-import { patchOpenAIResponsesModel } from './response';
 
-export const debug = require('debug')('agentops:instrumentation:openai-agents');
-
+const tracer = trace.getTracer('agentops', '0.1.0');
 
 export class OpenAIAgentsInstrumentation extends InstrumentationBase {
   static readonly metadata: InstrumentorMetadata = {
@@ -18,25 +19,45 @@ export class OpenAIAgentsInstrumentation extends InstrumentationBase {
   static readonly useRuntimeTargeting = true;
 
   protected setup(moduleExports: any, moduleVersion?: string): any {
+
+
     try {
-      // always ensure tracing is enabled
-      setTracingDisabled(false);
-
+      // Create the exporter
       const exporter = new OpenAIAgentsTracingExporter(this);
-      const processor = new BatchTraceProcessor(exporter, {
-        maxBatchSize: 1
-      });
+      
+      // Register our exporter with OpenAI agents tracing system
+      if (moduleExports.BatchTraceProcessor && moduleExports.addTraceProcessor) {
 
-      // this is the official method for registering a trace processor, but it
-      // does not work.
-      // addTraceProcessor(processor);
-      // instead, we get a reference to the global trace provider and register it directly.
-      const { getGlobalTraceProvider } = moduleExports;
-      const globalProvider = getGlobalTraceProvider();
-      globalProvider.registerProcessor(processor);
+        const processor = new moduleExports.BatchTraceProcessor(exporter, {
+          maxBatchSize: 1  // Export immediately for real-time tracking
+        });
+        moduleExports.addTraceProcessor(processor);
 
-      // Patch OpenAI Responses model to capture enhanced generation data
-      patchOpenAIResponsesModel(exporter, moduleExports);
+      } else {
+        console.warn('BatchTraceProcessor or addTraceProcessor not found in module exports');
+      }
+      
+      // Patch OpenAI client first (if available)
+      this.patchOpenAIClient();
+
+      // Patch @openai/agents-core components
+      this.patchAgentsCore(exporter);
+
+      // Patch @openai/agents-openai components
+      this.patchAgentsOpenAI(exporter);
+
+      // Also patch the main module exports
+      if (moduleExports.Agent) {
+        patchAgent(exporter, moduleExports);
+      }
+      if (moduleExports.OpenAIResponsesModel) {
+        patchOpenAIResponsesModelClass(exporter, moduleExports);
+      }
+      if (moduleExports.OpenAIProvider) {
+        patchOpenAIProvider(exporter, moduleExports);
+      }
+
+
     } catch (error) {
       console.error('[agentops.instrumentation.openai-agents] failed: ', error);
     }
@@ -45,7 +66,58 @@ export class OpenAIAgentsInstrumentation extends InstrumentationBase {
   }
 
   protected teardown(moduleExports: any, moduleVersion?: string): any {
-    // TODO removeTraceProcessor?
+    // TODO: Implement teardown if needed
     return moduleExports;
   }
+
+  private patchOpenAIClient(): void {
+    // OpenAI client patching removed - we capture model info at the provider level instead
+
+  }
+
+  private patchAgentsCore(exporter: any): void {
+    try {
+      const agentsCore = require('@openai/agents-core');
+
+      
+      patchAgent(exporter, agentsCore);
+      
+
+    } catch (error) {
+      console.warn('Failed to patch @openai/agents-core:', error);
+    }
+  }
+
+  private patchAgentsOpenAI(exporter: any): void {
+    try {
+      const agentsOpenAI = require('@openai/agents-openai');
+
+      
+      // Patch the class first
+      patchOpenAIResponsesModelClass(exporter, agentsOpenAI);
+      
+      // Then patch provider
+      patchOpenAIProvider(exporter, agentsOpenAI);
+
+    } catch (error) {
+      console.warn('Failed to patch @openai/agents-openai:', error);
+    }
+  }
 }
+
+// Export the function-based initialization for backward compatibility
+export function initializeOpenAIAgentsInstrumentation(config?: {
+  apiKey?: string;
+  endpoint?: string;
+  debug?: boolean;
+}) {
+  console.warn('initializeOpenAIAgentsInstrumentation called (deprecated, use class-based approach)');
+  // This function is now deprecated in favor of the class-based approach
+  // but we keep it for backward compatibility
+}
+
+// Export the tracer for use in other modules
+export { tracer, context, SpanStatusCode };
+
+// Re-export the exporter
+export { OpenAIAgentsTracingExporter };

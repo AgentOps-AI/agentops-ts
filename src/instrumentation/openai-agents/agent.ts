@@ -14,6 +14,7 @@ import {
   IndexedAttributeMap
 } from '../../attributes';
 
+
 /**
  * OpenAI Agents AgentSpanData type definition (from @openai/agents-core/dist/tracing/spans):
  *
@@ -70,4 +71,14 @@ export function convertAgentSpan(data: AgentSpanData): AttributeMap {
   }
 
   return attributes;
+}
+
+/**
+ * Patches the Agent class to add instrumentation.
+ */
+export function patchAgent(exporter: any, moduleExports: any): void {
+  if (!moduleExports.Agent) {
+    return;
+  }
+  const OriginalAgent = moduleExports.Agent;
 }
