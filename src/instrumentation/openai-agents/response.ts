@@ -133,8 +133,9 @@ export function convertResponseSpan(data: ResponseSpanData): AttributeMap {
       extractAttributesFromMapping(data._response.usage, RESPONSE_USAGE_ATTRIBUTES));
 
     const completions = [];
-    for (const item of data._response.output) {
-      switch (item.type) {
+    if (Array.isArray(data._response.output)) {
+      for (const item of data._response.output) {
+        switch (item.type) {
         case 'message': { // ResponseOutputMessage
           for (const contentItem of item.content || []) {
             switch (contentItem.type) {
