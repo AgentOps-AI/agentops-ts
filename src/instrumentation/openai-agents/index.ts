@@ -2,7 +2,6 @@ import { BatchTraceProcessor, addTraceProcessor, setTracingDisabled } from '@ope
 import { InstrumentationBase } from '../base';
 import { InstrumentorMetadata } from '../../types';
 import { OpenAIAgentsTracingExporter } from './exporter';
-import { patchOpenAIResponsesModel } from './response';
 
 export const debug = require('debug')('agentops:instrumentation:openai-agents');
 
@@ -34,9 +33,6 @@ export class OpenAIAgentsInstrumentation extends InstrumentationBase {
       const { getGlobalTraceProvider } = moduleExports;
       const globalProvider = getGlobalTraceProvider();
       globalProvider.registerProcessor(processor);
-
-      // Patch OpenAI Responses model to capture enhanced generation data
-      patchOpenAIResponsesModel(exporter, moduleExports);
     } catch (error) {
       console.error('[agentops.instrumentation.openai-agents] failed: ', error);
     }
