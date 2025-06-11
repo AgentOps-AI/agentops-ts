@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "openai": "^4.0.0",
-    "@openai/agents": "^0.0.1",
+    "@openai/agents": "^0.0.8",
     "agentops": "file:../..",
     "zod": "^3.22.0",
     "dotenv": "^16.0.0"
