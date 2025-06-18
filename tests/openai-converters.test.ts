@@ -1,7 +1,7 @@
 import { convertGenerationSpan } from '../src/instrumentation/openai-agents/generation';
 import { convertAgentSpan } from '../src/instrumentation/openai-agents/agent';
 import { convertFunctionSpan } from '../src/instrumentation/openai-agents/function';
-import { convertResponseSpan, convertEnhancedResponseSpan, createEnhancedResponseSpanData } from '../src/instrumentation/openai-agents/response';
+import { convertResponseSpan } from '../src/instrumentation/openai-agents/response';
 import { convertHandoffSpan } from '../src/instrumentation/openai-agents/handoff';
 import { convertCustomSpan } from '../src/instrumentation/openai-agents/custom';
 import { convertGuardrailSpan } from '../src/instrumentation/openai-agents/guardrail';
@@ -39,10 +39,24 @@ describe('OpenAI converters', () => {
     expect(convertResponseSpan({ type:'response', response_id:'r' } as any)['response.id']).toBe('r');
   });
 
-  it('enhances response data', () => {
-    const enhanced = createEnhancedResponseSpanData({ model:'m', input:[{type:'message', role:'user', content:'c'}] }, { responseId:'id', usage:{ inputTokens:1, outputTokens:2, totalTokens:3 } });
-    const attrs = convertEnhancedResponseSpan(enhanced);
+  it('converts response data', () => {
+    const data = {
+      type: 'response',
+      response_id: 'id',
+      _input: [{ type: 'message', role: 'user', content: 'c' }],
+      _response: {
+        id: 'id',
+        model: 'm',
+        usage: { input_tokens: 1, output_tokens: 2, total_tokens: 3 },
+        output: [
+          { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'o' }] }
+        ]
+      }
+    };
+    const attrs = convertResponseSpan(data as any);
+    expect(attrs['response.id']).toBe('id');
     expect(attrs['gen_ai.prompt.0.content']).toBe('c');
+    expect(attrs['gen_ai.completion.0.content']).toBe('o');
     expect(attrs['gen_ai.usage.total_tokens']).toBe('3');
   });
 

@@ -1,4 +1,5 @@
 import { InstrumentationBase } from '../src/instrumentation/base';
+import { Client } from '../src/client';
 
 class RuntimeInst extends InstrumentationBase {
   static readonly metadata = {
@@ -29,10 +30,10 @@ describe('InstrumentationRegistry', () => {
         AVAILABLE_INSTRUMENTORS: [RuntimeInst, SimpleInst]
       }));
       const { InstrumentationRegistry } = require('../src/instrumentation/registry');
-      const registry = new InstrumentationRegistry();
+      const registry = new InstrumentationRegistry(new Client());
       registry.initialize();
       expect(registry.getAvailable().length).toBe(2);
-      const active = registry.getActiveInstrumentors('svc');
+      const active = registry.getActiveInstrumentors();
       expect(active.some((i: any) => i instanceof RuntimeInst)).toBe(true);
       expect(active.some((i: any) => i instanceof SimpleInst)).toBe(true);
     });

@@ -26,6 +26,7 @@ import {
 import {
   extractAttributesFromMapping,
   extractAttributesFromArray,
+  extractAttributesFromMappingWithIndex,
   AttributeMap,
   IndexedAttributeMap
 } from '../../attributes';
@@ -100,108 +101,68 @@ const RESPONSE_INPUT_FUNCTION_CALL_ATTRIBUTES: IndexedAttributeMap = {
  * our centralized semantic convention constants and attribute mapping system.
  */
 export function convertResponseSpan(data: ResponseSpanData): AttributeMap {
-  const attributes: AttributeMap = {};
-  Object.assign(attributes, extractAttributesFromMapping(data, RESPONSE_ATTRIBUTES));
+  const attrs: AttributeMap = {};
+  Object.assign(attrs, extractAttributesFromMapping(data, RESPONSE_ATTRIBUTES));
 
-  if (data._input && Array.isArray(data._input)) {
-    for (const item of data._input) {
-      switch (item.type) {
-        case 'message': // Input message
-          Object.assign(attributes,
-            extractAttributesFromMapping(item, RESPONSE_INPUT_ATTRIBUTES));
-          break;
-        case 'function_call': // Input function call
-          Object.assign(attributes,
-            extractAttributesFromMapping(item, RESPONSE_INPUT_FUNCTION_CALL_ATTRIBUTES));
-          debug('Extracted input function call:', item.name);
-          break;
-        case 'function_call_result': // Function call result
-          debug('Skipping function call result');
-          break;
-        default:
-          debug('Unknown input item type:', item.type);
-          break;
+  if (Array.isArray(data._input)) {
+    data._input.forEach((item, i) => {
+      if (item.type === 'message') {
+        Object.assign(
+          attrs,
+          extractAttributesFromMappingWithIndex(item, RESPONSE_INPUT_ATTRIBUTES, i)
+        );
+      } else if (item.type === 'function_call') {
+        Object.assign(
+          attrs,
+          extractAttributesFromMappingWithIndex(
+            item,
+            RESPONSE_INPUT_FUNCTION_CALL_ATTRIBUTES,
+            i
+          )
+        );
       }
-    }
+    });
   }
 
-  // _response was added with https://github.com/openai/openai-agents-js/pull/85
   if (data._response) {
-    Object.assign(attributes,
-      extractAttributesFromMapping(data._response, RESPONSE_MODEL_ATTRIBUTES));
-    Object.assign(attributes,
-      extractAttributesFromMapping(data._response.usage, RESPONSE_USAGE_ATTRIBUTES));
+    Object.assign(attrs, extractAttributesFromMapping(data._response, RESPONSE_MODEL_ATTRIBUTES));
+    Object.assign(attrs, extractAttributesFromMapping(data._response.usage, RESPONSE_USAGE_ATTRIBUTES));
 
-    const completions = [];
+    const completions: any[] = [];
     if (Array.isArray(data._response.output)) {
       for (const item of data._response.output) {
-        switch (item.type) {
-        case 'message': { // ResponseOutputMessage
-          for (const contentItem of item.content || []) {
-            switch (contentItem.type) {
-              case 'output_text': // ResponseOutputText
-                completions.push({
-                  role: item.role || 'assistant',
-                  content: contentItem.text
-                });
-                break;
-              case 'refusal': // ResponseOutputRefusal
-                completions.push({
-                  role: item.role || 'assistant',
-                  content: contentItem.refusal
-                });
-                break;
-              default:
-                debug('Unknown message content type:', contentItem.type);
-                break;
+        if (item.type === 'message') {
+          for (const c of item.content || []) {
+            if (c.type === 'output_text') {
+              completions.push({ role: item.role || 'assistant', content: c.text });
+            } else if (c.type === 'refusal') {
+              completions.push({ role: item.role || 'assistant', content: c.refusal });
             }
           }
-          break;
-        }
-        case 'reasoning': { // ResponseReasoningItem
-          const reasoningText = item.summary
-            ?.filter((item: any) => item.type === 'summary_text')
-            ?.map((item: any) => item.text)
-            ?.join('') || '';
-
+        } else if (
+          item.type === 'function_call' ||
+          item.type === 'file_search_call' ||
+          item.type === 'web_search_call' ||
+          item.type === 'computer_call'
+        ) {
+          Object.assign(attrs, extractAttributesFromMapping(item, RESPONSE_TOOL_CALL_ATTRIBUTES));
+        } else if (item.type === 'reasoning') {
+          const reasoningText = (item.summary || [])
+            .filter((r: any) => r.type === 'summary_text')
+            .map((r: any) => r.text)
+            .join('');
           if (reasoningText) {
-            completions.push({
-              role: 'assistant',
-              content: reasoningText
-            });
+            completions.push({ role: 'assistant', content: reasoningText });
           }
-          break;
-        }
-        case 'function_call': // ResponseFunctionToolCall
-        case 'file_search_call': // ResponseFileSearchToolCall
-        case 'web_search_call': // ResponseFunctionWebSearch
-        case 'computer_call': { // ResponseComputerToolCall
-          Object.assign(attributes,
-            extractAttributesFromMapping(item, RESPONSE_TOOL_CALL_ATTRIBUTES));
-          break;
-        }
-        case 'image_generation_call': // ResponseOutputItem.ImageGenerationCall
-        case 'code_interpreter_call': // ResponseCodeInterpreterToolCall
-        case 'local_shell_call': // ResponseOutputItem.LocalShellCall
-        case 'mcp_call': // ResponseOutputItem.McpCall
-        case 'mcp_list_tools': // ResponseOutputItem.McpListTools
-        case 'mcp_approval_request': { // ResponseOutputItem.McpApprovalRequest
-          debug('Unhandled output item type:', item.type);
-          break;
-        }
-        default: {
-          debug('Unknown output item type:', item.type);
-          break;
         }
       }
     }
 
     if (completions.length > 0) {
-      Object.assign(attributes,
-        extractAttributesFromArray(completions, RESPONSE_OUTPUT_ATTRIBUTES));
+      Object.assign(attrs, extractAttributesFromArray(completions, RESPONSE_OUTPUT_ATTRIBUTES));
     }
   }
 
-  return attributes;
+  return attrs;
 }
 
