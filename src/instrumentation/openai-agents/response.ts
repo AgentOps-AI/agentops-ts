@@ -101,6 +101,7 @@ const RESPONSE_INPUT_FUNCTION_CALL_ATTRIBUTES: IndexedAttributeMap = {
  * our centralized semantic convention constants and attribute mapping system.
  */
 export function convertResponseSpan(data: ResponseSpanData): AttributeMap {
+  // Include index in attribute keys so multiple prompts and completions are captured
   const attrs: AttributeMap = {};
   Object.assign(attrs, extractAttributesFromMapping(data, RESPONSE_ATTRIBUTES));
 
