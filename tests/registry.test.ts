@@ -29,7 +29,8 @@ describe('InstrumentationRegistry', () => {
         AVAILABLE_INSTRUMENTORS: [RuntimeInst, SimpleInst]
       }));
       const { InstrumentationRegistry } = require('../src/instrumentation/registry');
-      const registry = new InstrumentationRegistry();
+      const client: any = { config: { serviceName: 'svc' } };
+      const registry = new InstrumentationRegistry(client);
       registry.initialize();
       expect(registry.getAvailable().length).toBe(2);
       const active = registry.getActiveInstrumentors('svc');

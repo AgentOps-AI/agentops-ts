@@ -27,7 +27,8 @@ describe('InstrumentationBase', () => {
   });
 
   it('runtime targeting runs setup only once', () => {
-    const inst = new RuntimeInstrumentation('n','v',{});
+    const client: any = { config: { serviceName: 'svc' } };
+    const inst = new RuntimeInstrumentation(client);
     inst.setupRuntimeTargeting();
     expect(inst.setup).toHaveBeenCalledTimes(1);
     inst.setupRuntimeTargeting();
