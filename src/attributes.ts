@@ -89,7 +89,7 @@ export function extractAttributesFromMapping(data: any, mapping: AttributeMap): 
       continue;
     }
 
-    if (typeof value !== 'string') {
+    if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') {
       value = safeSerialize(value);
     }
 

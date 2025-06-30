@@ -27,7 +27,7 @@ describe('attributes helpers', () => {
     const data = { a: 1, b: 'str', c: { foo: 'bar' } };
     const mapping = { x: 'a', y: 'b', z: 'c' };
     expect(extractAttributesFromMapping(data, mapping)).toEqual({
-      x: '1',
+      x: 1,
       y: 'str',
       z: '{"foo":"bar"}'
     });
