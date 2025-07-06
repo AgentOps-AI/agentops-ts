@@ -16,7 +16,6 @@ const MAX_EXPORT_BATCH_SIZE = 1; // Export immediately
 const SCHEDULED_DELAY_MILLIS = 0; // No delay between exports
 const EXPORT_TIMEOUT_MILLIS = 5000; // 5 second timeout
 
-// TODO make this part of config
 const DASHBOARD_URL = "https://app.agentops.ai";
 
 
@@ -132,7 +131,7 @@ export class TracingCore {
     this.sdk = new OpenTelemetryNodeSDK({
       resource: resource,
       instrumentations: instrumentations,
-      spanProcessor: this.processor,
+      spanProcessor: this.processor as any,
     });
 
     // Configure logging after resource attributes are settled

@@ -1,4 +1,5 @@
 import { InstrumentationBase } from '../src/instrumentation/base';
+import { Client } from '../src/client';
 
 class DummyInstrumentation extends InstrumentationBase {
   static readonly metadata = {
@@ -20,6 +21,12 @@ class RuntimeInstrumentation extends DummyInstrumentation {
 }
 
 describe('InstrumentationBase', () => {
+  let mockClient: Client;
+
+  beforeEach(() => {
+    mockClient = new Client();
+  });
+
   it('reports availability of target module', () => {
     expect(DummyInstrumentation.available).toBe(true);
     class Missing extends DummyInstrumentation { static readonly metadata = { ...DummyInstrumentation.metadata, targetLibrary: 'nonexistentlib' }; }
@@ -27,7 +34,7 @@ describe('InstrumentationBase', () => {
   });
 
   it('runtime targeting runs setup only once', () => {
-    const inst = new RuntimeInstrumentation('n','v',{});
+    const inst = new RuntimeInstrumentation(mockClient);
     inst.setupRuntimeTargeting();
     expect(inst.setup).toHaveBeenCalledTimes(1);
     inst.setupRuntimeTargeting();

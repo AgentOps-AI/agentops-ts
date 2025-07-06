@@ -31,31 +31,6 @@ import {
 } from '../../attributes';
 import { debug } from './index';
 
-/**
- * OpenAI Agents ResponseSpanData type definition (from @openai/agents-core/dist/tracing/spans):
- *
- * interface ResponseSpanData {
- *   type: 'response';
- *   response_id?: string;
- *   _input?: any;
- *   _response?: {
- *     id: string;
- *     model: string;
- *     usage?: {
- *       input_tokens: number;
- *       output_tokens: number;
- *       total_tokens: number;
- *     };
- *     output?: Array<{
- *       type: string;
- *       role?: string;
- *       content?: string;
- *     }>;
- *     output_text?: string;
- *   };
- * }
- */
-
 const RESPONSE_ATTRIBUTES: AttributeMap = {
   [RESPONSE_ID]: 'response_id',
   [RESPONSE_INPUT]: '_input'
@@ -93,12 +68,6 @@ const RESPONSE_INPUT_FUNCTION_CALL_ATTRIBUTES: IndexedAttributeMap = {
   [GEN_AI_MESSAGE_FUNCTION_CALL_ARGUMENTS]: 'arguments'
 };
 
-/**
- * Converts OpenAI Agents ResponseSpanData to OpenTelemetry semantic conventions.
- *
- * Maps response spans to standard response semantic conventions using
- * our centralized semantic convention constants and attribute mapping system.
- */
 export function convertResponseSpan(data: ResponseSpanData): AttributeMap {
   const attributes: AttributeMap = {};
   Object.assign(attributes, extractAttributesFromMapping(data, RESPONSE_ATTRIBUTES));
@@ -106,16 +75,16 @@ export function convertResponseSpan(data: ResponseSpanData): AttributeMap {
   if (data._input && Array.isArray(data._input)) {
     for (const item of data._input) {
       switch (item.type) {
-        case 'message': // Input message
+        case 'message':
           Object.assign(attributes,
             extractAttributesFromMapping(item, RESPONSE_INPUT_ATTRIBUTES));
           break;
-        case 'function_call': // Input function call
+        case 'function_call':
           Object.assign(attributes,
             extractAttributesFromMapping(item, RESPONSE_INPUT_FUNCTION_CALL_ATTRIBUTES));
           debug('Extracted input function call:', item.name);
           break;
-        case 'function_call_result': // Function call result
+        case 'function_call_result':
           debug('Skipping function call result');
           break;
         default:
@@ -125,27 +94,26 @@ export function convertResponseSpan(data: ResponseSpanData): AttributeMap {
     }
   }
 
-  // _response was added with https://github.com/openai/openai-agents-js/pull/85
-  if (data._response) {
+  if ((data as any)._response) {
     Object.assign(attributes,
-      extractAttributesFromMapping(data._response, RESPONSE_MODEL_ATTRIBUTES));
+      extractAttributesFromMapping((data as any)._response, RESPONSE_MODEL_ATTRIBUTES));
     Object.assign(attributes,
-      extractAttributesFromMapping(data._response.usage, RESPONSE_USAGE_ATTRIBUTES));
+      extractAttributesFromMapping((data as any)._response.usage, RESPONSE_USAGE_ATTRIBUTES));
 
     const completions = [];
-    if (Array.isArray(data._response.output)) {
-      for (const item of data._response.output) {
+    if (Array.isArray((data as any)._response.output)) {
+      for (const item of (data as any)._response.output) {
         switch (item.type) {
-        case 'message': { // ResponseOutputMessage
+        case 'message': {
           for (const contentItem of item.content || []) {
             switch (contentItem.type) {
-              case 'output_text': // ResponseOutputText
+              case 'output_text':
                 completions.push({
                   role: item.role || 'assistant',
                   content: contentItem.text
                 });
                 break;
-              case 'refusal': // ResponseOutputRefusal
+              case 'refusal':
                 completions.push({
                   role: item.role || 'assistant',
                   content: contentItem.refusal
@@ -158,7 +126,7 @@ export function convertResponseSpan(data: ResponseSpanData): AttributeMap {
           }
           break;
         }
-        case 'reasoning': { // ResponseReasoningItem
+        case 'reasoning': {
           const reasoningText = item.summary
             ?.filter((item: any) => item.type === 'summary_text')
             ?.map((item: any) => item.text)
@@ -172,26 +140,27 @@ export function convertResponseSpan(data: ResponseSpanData): AttributeMap {
           }
           break;
         }
-        case 'function_call': // ResponseFunctionToolCall
-        case 'file_search_call': // ResponseFileSearchToolCall
-        case 'web_search_call': // ResponseFunctionWebSearch
-        case 'computer_call': { // ResponseComputerToolCall
+        case 'function_call':
+        case 'file_search_call':
+        case 'web_search_call':
+        case 'computer_call': {
           Object.assign(attributes,
             extractAttributesFromMapping(item, RESPONSE_TOOL_CALL_ATTRIBUTES));
           break;
         }
-        case 'image_generation_call': // ResponseOutputItem.ImageGenerationCall
-        case 'code_interpreter_call': // ResponseCodeInterpreterToolCall
-        case 'local_shell_call': // ResponseOutputItem.LocalShellCall
-        case 'mcp_call': // ResponseOutputItem.McpCall
-        case 'mcp_list_tools': // ResponseOutputItem.McpListTools
-        case 'mcp_approval_request': { // ResponseOutputItem.McpApprovalRequest
+        case 'image_generation_call':
+        case 'code_interpreter_call':
+        case 'local_shell_call':
+        case 'mcp_call':
+        case 'mcp_list_tools':
+        case 'mcp_approval_request': {
           debug('Unhandled output item type:', item.type);
           break;
         }
         default: {
           debug('Unknown output item type:', item.type);
           break;
+        }
         }
       }
     }
@@ -202,6 +171,43 @@ export function convertResponseSpan(data: ResponseSpanData): AttributeMap {
     }
   }
 
+  return attributes;
+}
+
+export function createEnhancedResponseSpanData(
+  baseData: { model: string; input: Array<{ type: string; role?: string; content?: string }> },
+  metadata: { responseId: string; usage: { inputTokens: number; outputTokens: number; totalTokens: number } }
+): any {
+  return {
+    type: 'response',
+    response_id: metadata.responseId,
+    _input: baseData.input,
+    _response: {
+      id: metadata.responseId,
+      model: baseData.model,
+      usage: {
+        input_tokens: metadata.usage.inputTokens,
+        output_tokens: metadata.usage.outputTokens,
+        total_tokens: metadata.usage.totalTokens
+      }
+    }
+  };
+}
+
+export function convertEnhancedResponseSpan(data: any): AttributeMap {
+  const attributes: AttributeMap = {};
+  
+  Object.assign(attributes, extractAttributesFromMapping(data, RESPONSE_ATTRIBUTES));
+  
+  if (data._input && Array.isArray(data._input)) {
+    Object.assign(attributes, extractAttributesFromArray(data._input, RESPONSE_INPUT_ATTRIBUTES));
+  }
+  
+  if (data._response) {
+    Object.assign(attributes, extractAttributesFromMapping(data._response, RESPONSE_MODEL_ATTRIBUTES));
+    Object.assign(attributes, extractAttributesFromMapping(data._response.usage, RESPONSE_USAGE_ATTRIBUTES));
+  }
+  
   return attributes;
 }
 

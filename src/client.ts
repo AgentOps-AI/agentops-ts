@@ -153,7 +153,6 @@ export class Client {
     process.on('SIGTERM', () => this.shutdown());
     process.on('uncaughtException', (err) => {
       console.error('Uncaught exception:', err);
-      // TODO we can handle error states on unexported spans here
       this.shutdown();
       process.exit(1);
     });

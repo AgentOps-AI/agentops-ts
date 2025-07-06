@@ -13,4 +13,3 @@ export const GEN_AI_RESPONSE_FINISH_REASONS = 'gen_ai.response.finish_reasons';
 export const GEN_AI_USAGE_INPUT_TOKENS = 'gen_ai.usage.prompt_tokens';
 export const GEN_AI_USAGE_OUTPUT_TOKENS = 'gen_ai.usage.completion_tokens';
 export const GEN_AI_USAGE_TOTAL_TOKENS = 'gen_ai.usage.total_tokens';
-// TODO cache and reasoning tokens
