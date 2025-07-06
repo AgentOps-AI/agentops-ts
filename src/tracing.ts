@@ -16,7 +16,6 @@ const MAX_EXPORT_BATCH_SIZE = 1; // Export immediately
 const SCHEDULED_DELAY_MILLIS = 0; // No delay between exports
 const EXPORT_TIMEOUT_MILLIS = 5000; // 5 second timeout
 
-// TODO make this part of config
 const DASHBOARD_URL = "https://app.agentops.ai";
 
 
