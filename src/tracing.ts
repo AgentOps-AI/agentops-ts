@@ -131,7 +131,7 @@ export class TracingCore {
     this.sdk = new OpenTelemetryNodeSDK({
       resource: resource,
       instrumentations: instrumentations,
-      spanProcessor: this.processor,
+      spanProcessor: this.processor as any,
     });
 
     // Configure logging after resource attributes are settled
