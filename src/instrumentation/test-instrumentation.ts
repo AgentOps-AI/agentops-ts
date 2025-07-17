@@ -1,35 +1,30 @@
+import { SpanKind, SpanStatusCode } from '@opentelemetry/api';
 import { InstrumentationBase } from './base';
-import { trace, SpanKind, SpanStatusCode } from '@opentelemetry/api';
 import { InstrumentorMetadata } from '../types';
 import {
   GEN_AI_REQUEST_MODEL,
   GEN_AI_REQUEST_MAX_TOKENS,
   GEN_AI_REQUEST_TEMPERATURE,
   GEN_AI_RESPONSE_MODEL,
-  GEN_AI_USAGE_INPUT_TOKENS,
-  GEN_AI_USAGE_OUTPUT_TOKENS,
+  GEN_AI_USAGE_PROMPT_TOKENS,
+  GEN_AI_USAGE_COMPLETION_TOKENS,
   GEN_AI_USAGE_TOTAL_TOKENS
-} from '../semconv/model';
-import {
-  GEN_AI_PROMPT_ROLE,
-  GEN_AI_PROMPT_CONTENT,
-  GEN_AI_COMPLETION_ROLE,
-  GEN_AI_COMPLETION_CONTENT
-} from '../semconv/messages';
+} from '../semconv/gen_ai';
 
 /**
- * Test instrumenter that generates sample spans without instrumenting any real libraries.
- * Useful for verifying that span generation and export works correctly.
+ * Test instrumentation for agentops-test-lib module.
+ * This is used for testing the instrumentation system.
  */
 export class TestInstrumentation extends InstrumentationBase {
   static readonly metadata: InstrumentorMetadata = {
     name: 'test-instrumentation',
     version: '1.0.0',
-    description: 'Test instrumentation for generating sample spans',
+    description: 'Test instrumentation for agentops-test-lib',
     targetLibrary: 'agentops-test-lib',
     targetVersions: ['*']
   };
 
+  static readonly useRuntimeTargeting = true;
 
   protected setup(moduleExports: any, moduleVersion?: string): any {
     console.log('Test instrumentation enabled - patching agentops-test-lib');
@@ -71,8 +66,8 @@ export class TestInstrumentation extends InstrumentationBase {
           'gen_ai.completion.0.content': result.text,
           
           // Usage tokens
-          [GEN_AI_USAGE_INPUT_TOKENS]: result.usage.promptTokens,
-          [GEN_AI_USAGE_OUTPUT_TOKENS]: result.usage.completionTokens,
+          [GEN_AI_USAGE_PROMPT_TOKENS]: result.usage.promptTokens,
+          [GEN_AI_USAGE_COMPLETION_TOKENS]: result.usage.completionTokens,
           [GEN_AI_USAGE_TOTAL_TOKENS]: result.usage.totalTokens,
         };
         console.log('[test-instrumentation] Adding response attributes:', responseAttributes);

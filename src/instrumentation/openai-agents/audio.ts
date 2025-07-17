@@ -8,7 +8,7 @@ import {
 import {
   GEN_AI_REQUEST_MODEL,
   GEN_AI_RESPONSE_MODEL
-} from '../../semconv/model';
+} from '../../semconv/gen_ai';
 import {
   extractAttributesFromMapping,
   AttributeMap
