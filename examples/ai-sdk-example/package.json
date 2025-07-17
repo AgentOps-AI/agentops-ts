@@ -1,0 +1,30 @@
+{
+  "name": "basic-ai-sdk-example",
+  "version": "1.0.0",
+  "description": "Basic example of AI SDK v5 with AgentOps instrumentation",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^2.0.0-beta.9",
+    "@opentelemetry/api": "^1.9.0",
+    "agentops": "file:../../",
+    "ai": "^5.0.0-beta.21",
+    "dotenv": "^17.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
+  },
+  "keywords": [
+    "ai",
+    "openai",
+    "agentops",
+    "telemetry",
+    "observability"
+  ],
+  "author": "AgentOps",
+  "license": "MIT"
+}

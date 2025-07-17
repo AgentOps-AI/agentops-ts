@@ -9,6 +9,7 @@ import { Config, LogLevel } from './types';
 import { BearerToken } from './api';
 import { InstrumentationBase } from './instrumentation/base';
 import { logToConsole } from './log';
+import { AISDKExporter } from './instrumentation/ai-sdk/exporter';
 
 const debug = require('debug')('agentops:tracing');
 
@@ -66,13 +67,17 @@ class Exporter extends OTLPTraceExporter {
    * @param result - The export result
    */
   private onExportResult(spans: ReadableSpan[], result: ExportResult): void {
+    debug(`export result: ${result.code}, spans: ${spans.length}`);
+    
     if (result.code === ExportResultCode.SUCCESS) {
       spans.forEach(span => {
         this.trackExportedTrace(span);
       });
       debug(`exported ${spans.length} span(s)`);
+      console.log(`✅ Successfully exported ${spans.length} span(s) to AgentOps`);
     } else {
-      console.error(`Export failed for ${spans.length} spans: ${result.error?.message || 'Unknown error'}`);
+      console.error(`❌ Export failed for ${spans.length} spans: ${result.error?.message || 'Unknown error'}`);
+      console.error(`Export result code: ${result.code}`);
     }
   }
 
@@ -99,7 +104,7 @@ class Exporter extends OTLPTraceExporter {
  */
 export class TracingCore {
   private sdk: OpenTelemetryNodeSDK | null = null;
-  private exporter: Exporter | null = null;
+  private exporter: SpanExporter | null = null;
   private processor: BatchSpanProcessor | null = null;
 
   /**
@@ -116,12 +121,16 @@ export class TracingCore {
     private instrumentations: InstrumentationBase[],
     resource: Resource
   ) {
-    this.exporter = new Exporter({
+    // Create the base AgentOps exporter
+    const baseExporter = new Exporter({
       url: `${config.otlpEndpoint}/v1/traces`,
       headers: {
         authorization: authToken.getAuthHeader(),
       },
     });
+
+    // Wrap with AI SDK exporter to transform attributes
+    this.exporter = new AISDKExporter(baseExporter);
 
     this.processor = new BatchSpanProcessor(this.exporter, {
       maxExportBatchSize: MAX_EXPORT_BATCH_SIZE,
@@ -132,7 +141,7 @@ export class TracingCore {
     this.sdk = new OpenTelemetryNodeSDK({
       resource: resource,
       instrumentations: instrumentations,
-      spanProcessor: this.processor,
+      spanProcessor: this.processor as any,
     });
 
     // Configure logging after resource attributes are settled

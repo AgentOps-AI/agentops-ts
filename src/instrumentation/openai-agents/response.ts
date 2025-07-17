@@ -6,10 +6,10 @@ import {
 import {
   GEN_AI_REQUEST_MODEL,
   GEN_AI_RESPONSE_MODEL,
-  GEN_AI_USAGE_INPUT_TOKENS,
-  GEN_AI_USAGE_OUTPUT_TOKENS,
+  GEN_AI_USAGE_PROMPT_TOKENS,
+  GEN_AI_USAGE_COMPLETION_TOKENS,
   GEN_AI_USAGE_TOTAL_TOKENS
-} from '../../semconv/model';
+} from '../../semconv/gen_ai';
 import {
   GEN_AI_PROMPT_ROLE,
   GEN_AI_PROMPT_CONTENT,
@@ -66,8 +66,8 @@ const RESPONSE_MODEL_ATTRIBUTES: AttributeMap = {
 };
 
 const RESPONSE_USAGE_ATTRIBUTES: AttributeMap = {
-  [GEN_AI_USAGE_INPUT_TOKENS]: 'input_tokens',
-  [GEN_AI_USAGE_OUTPUT_TOKENS]: 'output_tokens',
+  [GEN_AI_USAGE_PROMPT_TOKENS]: 'input_tokens',
+  [GEN_AI_USAGE_COMPLETION_TOKENS]: 'output_tokens',
   [GEN_AI_USAGE_TOTAL_TOKENS]: 'total_tokens'
 };
 
@@ -126,15 +126,15 @@ export function convertResponseSpan(data: ResponseSpanData): AttributeMap {
   }
 
   // _response was added with https://github.com/openai/openai-agents-js/pull/85
-  if (data._response) {
+  if ((data as any)._response) {
     Object.assign(attributes,
-      extractAttributesFromMapping(data._response, RESPONSE_MODEL_ATTRIBUTES));
+      extractAttributesFromMapping((data as any)._response, RESPONSE_MODEL_ATTRIBUTES));
     Object.assign(attributes,
-      extractAttributesFromMapping(data._response.usage, RESPONSE_USAGE_ATTRIBUTES));
+      extractAttributesFromMapping((data as any)._response.usage, RESPONSE_USAGE_ATTRIBUTES));
 
     const completions = [];
-    if (Array.isArray(data._response.output)) {
-      for (const item of data._response.output) {
+    if (Array.isArray((data as any)._response.output)) {
+      for (const item of (data as any)._response.output) {
         switch (item.type) {
         case 'message': { // ResponseOutputMessage
           for (const contentItem of item.content || []) {
@@ -195,6 +195,7 @@ export function convertResponseSpan(data: ResponseSpanData): AttributeMap {
         }
       }
     }
+  }
 
     if (completions.length > 0) {
       Object.assign(attributes,
@@ -204,4 +205,3 @@ export function convertResponseSpan(data: ResponseSpanData): AttributeMap {
 
   return attributes;
 }
-
