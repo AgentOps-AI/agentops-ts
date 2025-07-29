@@ -26,7 +26,7 @@ const debug = require('debug')('agentops:client');
  * ```
  */
 export class Client {
-  private config: Config;
+  public config: Config;
   public readonly registry: InstrumentationRegistry;
   private core: TracingCore | null = null;
   private api: API | null = null;
@@ -44,7 +44,7 @@ export class Client {
       apiKey: process.env.AGENTOPS_API_KEY,
       logLevel: (process.env.AGENTOPS_LOG_LEVEL as LogLevel) || 'error'
     };
-    this.registry = new InstrumentationRegistry();
+    this.registry = new InstrumentationRegistry(this);
   }
 
   /**
@@ -94,8 +94,8 @@ export class Client {
     const resource = await getGlobalResource(this.config.serviceName!);
     this.core = new TracingCore(
       this.config,
-      authToken,
-      this.registry.getActiveInstrumentors(this.config.serviceName!),
+      await this.getAuthToken(),
+      this.registry.getActiveInstrumentors(),
       resource
     );
     this.setupExitHandlers();

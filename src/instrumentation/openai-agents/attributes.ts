@@ -18,7 +18,7 @@ import { AttributeMap } from '../../attributes';
 import { convertGenerationSpan } from './generation';
 import { convertAgentSpan } from './agent';
 import { convertFunctionSpan } from './function';
-import { convertResponseSpan, convertEnhancedResponseSpan, AgentOpsResponseSpanData } from './response';
+import { convertResponseSpan } from './response';
 import { convertHandoffSpan } from './handoff';
 import { convertCustomSpan } from './custom';
 import { convertGuardrailSpan } from './guardrail';
@@ -94,52 +94,46 @@ export function getSpanAttributes(item: OpenAISpan<any>): Record<string, any> {
     'openai_agents.trace_id': item.traceId,
   };
 
-  let typeSpecificAttributes: Record<string, any> = {};
+  let attributes: Record<string, any> = {};
   switch (spanData.type) {
     case 'generation':
-      typeSpecificAttributes = convertGenerationSpan(spanData as GenerationSpanData);
+      attributes = convertGenerationSpan(spanData as GenerationSpanData);
       break;
     case 'agent':
-      typeSpecificAttributes = convertAgentSpan(spanData as AgentSpanData);
+      attributes = convertAgentSpan(spanData as AgentSpanData);
       break;
     case 'function':
-      typeSpecificAttributes = convertFunctionSpan(spanData as FunctionSpanData);
+      attributes = convertFunctionSpan(spanData as FunctionSpanData);
       break;
     case 'response':
-      // Check if this is an enhanced AgentOps response span with generation data
-      // TODO check this more effectively that this...
-      if ('agentops_model' in spanData || 'agentops_input_messages' in spanData || 'agentops_output_messages' in spanData || 'agentops_usage' in spanData) {
-        typeSpecificAttributes = convertEnhancedResponseSpan(spanData as AgentOpsResponseSpanData);
-      } else {
-        typeSpecificAttributes = convertResponseSpan(spanData as ResponseSpanData);
-      }
+      attributes = convertResponseSpan(spanData as ResponseSpanData);
       break;
     case 'handoff':
-      typeSpecificAttributes = convertHandoffSpan(spanData as HandoffSpanData);
+      attributes = convertHandoffSpan(spanData as HandoffSpanData);
       break;
     case 'custom':
-      typeSpecificAttributes = convertCustomSpan(spanData as CustomSpanData);
+      attributes = convertCustomSpan(spanData as CustomSpanData);
       break;
     case 'guardrail':
-      typeSpecificAttributes = convertGuardrailSpan(spanData as GuardrailSpanData);
+      attributes = convertGuardrailSpan(spanData as GuardrailSpanData);
       break;
     case 'transcription':
-      typeSpecificAttributes = convertTranscriptionSpan(spanData as TranscriptionSpanData);
+      attributes = convertTranscriptionSpan(spanData as TranscriptionSpanData);
       break;
     case 'speech':
-      typeSpecificAttributes = convertSpeechSpan(spanData as SpeechSpanData);
+      attributes = convertSpeechSpan(spanData as SpeechSpanData);
       break;
     case 'speech_group':
-      typeSpecificAttributes = convertSpeechGroupSpan(spanData as SpeechGroupSpanData);
+      attributes = convertSpeechGroupSpan(spanData as SpeechGroupSpanData);
       break;
     case 'mcp_tools':
-      typeSpecificAttributes = convertMCPListToolsSpan(spanData as MCPListToolsSpanData);
+      attributes = convertMCPListToolsSpan(spanData as MCPListToolsSpanData);
       break;
     default:
       // For unknown span types, include the raw span data
-      typeSpecificAttributes = {'span.raw_data': spanData };
+      attributes = {'span.raw_data': spanData };
       break;
   }
 
-  return { ...baseAttributes, ...typeSpecificAttributes };
+  return { ...baseAttributes, ...attributes };
 }

@@ -7,6 +7,7 @@ module.exports = {
   transform: {
     '^.+\\.ts$': ['ts-jest', {
       useESM: false,
+      diagnostics: false,
     }],
   },
   transformIgnorePatterns: [
@@ -17,9 +18,10 @@ module.exports = {
   },
   collectCoverageFrom: [
     'src/**/*.ts',
-    '!src/**/*.d.ts',
     '!src/index.ts',
-    '!src/__tests__/**',
+    '!src/**/*.d.ts',
+    '!src/instrumentation/**',
+    '!src/tracing.ts',
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],

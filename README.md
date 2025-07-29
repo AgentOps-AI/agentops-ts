@@ -2,7 +2,7 @@
 
 <div align="center">
   <a href="https://agentops.ai?ref=gh">
-    <img src="docs/images/logo/github-banner.png" alt="Logo">
+    <img src="https://raw.githubusercontent.com/AgentOps-AI/agentops/main/docs/images/external/logo/github-banner.png" alt="Logo">
   </a>
 </div>
 
@@ -13,10 +13,10 @@
 <br />
 
 <div align="center">
-  <a href="https://github.com/agentops-ai/agentops/issues">
+  <a href="https://github.com/agentops-ai/agentops-ts/issues">
   <img src="https://img.shields.io/github/commit-activity/m/agentops-ai/agentops-ts" alt="git commit activity">
   </a>
-  <img src="https://img.shields.io/pypi/v/agentops?&color=3670A0" alt="PyPI - Version">
+  <img src="https://img.shields.io/npm/v/agentops?&color=3670A0" alt="NPM - Version">
   <a href="https://opensource.org/licenses/MIT">
     <img src="https://img.shields.io/badge/License-MIT-yellow.svg?&color=3670A0" alt="License: MIT">
   </a>

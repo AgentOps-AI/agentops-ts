@@ -5,6 +5,8 @@ import {
   InstrumentationConfig
 } from '@opentelemetry/instrumentation';
 import { InstrumentorMetadata } from '../types';
+import { Client } from '../client';
+import { getPackageVersion } from '../attributes';
 
 const debug = require('debug')('agentops:instrumentation:base');
 
@@ -65,6 +67,14 @@ export abstract class InstrumentationBase extends _InstrumentationBase {
   static readonly metadata: InstrumentorMetadata;
   static readonly useRuntimeTargeting?: boolean = false;
   private isRuntimeSetup: boolean = false;
+  private client: Client;
+
+  constructor(
+    client: Client
+  ) {
+    super(client.config.serviceName!, getPackageVersion(), {});
+    this.client = client;
+  }
 
   /**
    * Initializes the instrumentation module definition using the static metadata.
