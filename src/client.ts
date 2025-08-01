@@ -4,6 +4,7 @@ import { Config, LogLevel } from './types';
 import { API, TokenResponse, BearerToken } from './api';
 import { TracingCore } from './tracing';
 import { getGlobalResource } from './attributes';
+import { loggingService } from './instrumentation/console-logging/service';
 
 const debug = require('debug')('agentops:client');
 
@@ -83,12 +84,20 @@ export class Client {
     }
     this.api = new API(this.config.apiKey, this.config.apiEndpoint!);
 
+    // Get auth token and set it on the API instance
+    const authToken = await this.getAuthToken();
+    this.api.setBearerToken(authToken);
+
+    // Initialize logging service
+    loggingService.initialize(this.api);
+
     const resource = await getGlobalResource(this.config.serviceName!);
     this.core = new TracingCore(
       this.config,
       await this.getAuthToken(),
       this.registry.getActiveInstrumentors(),
-      resource
+      resource,
+      this
     );
     this.setupExitHandlers();
 
@@ -127,6 +136,9 @@ export class Client {
       return;
     }
 
+    // Disable logging service
+    loggingService.disable();
+
     if(this.core) {
       await this.core.shutdown();
     }
@@ -148,6 +160,13 @@ export class Client {
    * @private
    */
   private setupExitHandlers(): void {
+    // beforeExit allows async operations, perfect for flushing traces
+    process.on('beforeExit', async () => {
+      if (this.initialized) {
+        await this.flush();
+      }
+    });
+    
     process.on('exit', () => this.shutdown());
     process.on('SIGINT', () => this.shutdown());
     process.on('SIGTERM', () => this.shutdown());
@@ -178,6 +197,31 @@ export class Client {
     }
 
     return this.authToken;
+  }
+
+  /**
+   * Upload captured console logs to the AgentOps API.
+   *
+   * @param traceId - The trace ID to associate with the logs
+   * @returns Promise resolving to upload result with ID, or null if no logs to upload
+   * @throws {Error} When the SDK is not initialized or upload fails
+   */
+  async uploadLogFile(traceId: string): Promise<{ id: string } | null> {
+    this.ensureInitialized();
+    return loggingService.uploadLogs(traceId);
+  }
+
+  /**
+   * Flush all pending trace actions: print URLs and upload logs.
+   * Call this after execution is complete to see results and upload logs.
+   * 
+   * @throws {Error} When the SDK is not initialized
+   */
+  async flush(): Promise<void> {
+    this.ensureInitialized();
+    if (this.core) {
+      await this.core.flush();
+    }
   }
 
 }

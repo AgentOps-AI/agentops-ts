@@ -202,6 +202,6 @@ export function convertResponseSpan(data: ResponseSpanData): AttributeMap {
     }
   }
 
-  return attributes;
 }
-
+return attributes;
+}
