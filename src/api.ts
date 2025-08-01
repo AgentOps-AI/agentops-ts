@@ -128,7 +128,6 @@ export class API {
     if (!this.bearerToken) {
       throw new Error('Authentication required. Bearer token not set.');
     }
-
     return this.fetch<{ id: string }>(
       '/v4/logs/upload/',
       'POST',

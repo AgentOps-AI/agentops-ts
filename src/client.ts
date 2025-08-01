@@ -96,7 +96,8 @@ export class Client {
       this.config,
       await this.getAuthToken(),
       this.registry.getActiveInstrumentors(),
-      resource
+      resource,
+      this
     );
     this.setupExitHandlers();
 
@@ -159,6 +160,13 @@ export class Client {
    * @private
    */
   private setupExitHandlers(): void {
+    // beforeExit allows async operations, perfect for flushing traces
+    process.on('beforeExit', async () => {
+      if (this.initialized) {
+        await this.flush();
+      }
+    });
+    
     process.on('exit', () => this.shutdown());
     process.on('SIGINT', () => this.shutdown());
     process.on('SIGTERM', () => this.shutdown());
@@ -201,6 +209,19 @@ export class Client {
   async uploadLogFile(traceId: string): Promise<{ id: string } | null> {
     this.ensureInitialized();
     return loggingService.uploadLogs(traceId);
+  }
+
+  /**
+   * Flush all pending trace actions: print URLs and upload logs.
+   * Call this after execution is complete to see results and upload logs.
+   * 
+   * @throws {Error} When the SDK is not initialized
+   */
+  async flush(): Promise<void> {
+    this.ensureInitialized();
+    if (this.core) {
+      await this.core.flush();
+    }
   }
 
 }

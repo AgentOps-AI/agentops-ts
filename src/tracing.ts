@@ -1,8 +1,7 @@
 import { NodeSDK as OpenTelemetryNodeSDK } from '@opentelemetry/sdk-node';
 import { diag, DiagConsoleLogger, DiagLogLevel } from '@opentelemetry/api';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
-import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-node';
-import { SpanExporter, ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import { BatchSpanProcessor, SpanExporter, ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { ExportResult, ExportResultCode } from '@opentelemetry/core';
 import { Resource } from '@opentelemetry/resources';
 import { Config, LogLevel } from './types';
@@ -18,9 +17,19 @@ const EXPORT_TIMEOUT_MILLIS = 5000; // 5 second timeout
 // TODO make this part of config
 const DASHBOARD_URL = "https://app.agentops.ai";
 
+// Forward declaration to avoid circular dependency
+interface ClientLike {
+  uploadLogFile(traceId: string): Promise<{ id: string } | null>;
+}
 
 class Exporter extends OTLPTraceExporter {
   private exportedTraceIds: Set<string> = new Set();
+  private uploadedTraceIds: Set<string> = new Set();
+  private printedTraceIds: Set<string> = new Set();
+
+  constructor(config: any, private client?: ClientLike) {
+    super(config);
+  }
 
   /**
     * Creates a new OTLP exporter for AgentOps with custom export handling.
@@ -46,20 +55,18 @@ class Exporter extends OTLPTraceExporter {
   }
 
   /**
-   * Tracks a newly exported trace and prints its dashboard URL if not already seen.
+   * Tracks a newly exported trace (without immediate actions).
    *
    * @param span - The span to track
    */
   private trackExportedTrace(span: ReadableSpan): void {
     const traceId = span.spanContext().traceId;
-    if(!this.exportedTraceIds.has(traceId)){
-      this.exportedTraceIds.add(traceId);
-      this.printExportedTraceURL(traceId);
-    }
+    this.exportedTraceIds.add(traceId);
   }
 
   /**
    * Handle export results and track successfully exported traces.
+   * Actions are deferred until flush() is called.
    *
    * @param spans - The spans that were exported
    * @param result - The export result
@@ -76,15 +83,46 @@ class Exporter extends OTLPTraceExporter {
   }
 
   /**
-   * Shutdown the exporter and print dashboard URLs for all exported traces.
+   * Flush all pending actions: print URLs and upload logs for all exported traces.
+   */
+  async flush(): Promise<void> {
+    debug('flushing exported traces');
+    
+    // Print URLs and upload logs for all exported traces
+    const uploadPromises: Promise<void>[] = [];
+    
+    this.exportedTraceIds.forEach(traceId => {
+      // Print URL only if not already printed
+      if (!this.printedTraceIds.has(traceId)) {
+        this.printedTraceIds.add(traceId);
+        this.printExportedTraceURL(traceId);
+      }
+      
+      // Upload logs if client is available and not already uploaded
+      if (this.client && !this.uploadedTraceIds.has(traceId)) {
+        this.uploadedTraceIds.add(traceId);
+        const uploadPromise = this.client.uploadLogFile(traceId)
+          .then(() => {}) // Convert to void
+          .catch(error => {
+            debug(`Failed to upload logs for trace ${traceId}:`, error);
+            // Remove from uploaded set if upload failed, allowing retry
+            this.uploadedTraceIds.delete(traceId);
+          });
+        uploadPromises.push(uploadPromise);
+      }
+    });
+    
+    // Wait for all uploads to complete
+    await Promise.all(uploadPromises);
+  }
+
+  /**
+   * Shutdown the exporter.
    *
    * @return Promise that resolves when shutdown is complete
    */
   async shutdown(): Promise<void> {
     debug('exporter shutdown');
-    this.exportedTraceIds.forEach(traceId => {
-      this.printExportedTraceURL(traceId);
-    })
     return super.shutdown();
   }
 }
@@ -108,19 +146,21 @@ export class TracingCore {
    * @param authToken - Bearer token for authenticating with AgentOps API
    * @param instrumentations - Array of AgentOps instrumentations to enable
    * @param resource - Pre-created resource with async attributes resolved
+   * @param client - Client instance for log upload functionality
    */
   constructor(
     private config: Config,
     private authToken: BearerToken,
     private instrumentations: InstrumentationBase[],
-    resource: Resource
+    resource: Resource,
+    client?: ClientLike
   ) {
     this.exporter = new Exporter({
       url: `${config.otlpEndpoint}/v1/traces`,
       headers: {
         authorization: authToken.getAuthHeader(),
       },
-    });
+    }, client);
 
     this.processor = new BatchSpanProcessor(this.exporter, {
       maxExportBatchSize: MAX_EXPORT_BATCH_SIZE,
@@ -131,13 +171,23 @@ export class TracingCore {
     this.sdk = new OpenTelemetryNodeSDK({
       resource: resource,
       instrumentations: instrumentations,
-      spanProcessor: this.processor,
+      spanProcessor: this.processor as any,
     });
 
     // Configure logging after resource attributes are settled
     this.configureLogging();
     this.sdk.start();
     debug('tracing core initialized');
+  }
+
+  /**
+   * Flush all pending trace actions: print URLs and upload logs.
+   * Call this after execution is complete.
+   */
+  async flush(): Promise<void> {
+    if (this.exporter) {
+      await this.exporter.flush();
+    }
   }
 
   /**
