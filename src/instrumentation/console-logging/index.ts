@@ -1,16 +1,44 @@
+import { InstrumentationBase } from '../base';
+import { InstrumentorMetadata } from '../../types';
 import { globalLogBuffer } from './buffer';
+import { loggingService } from './service';
 
-export class LoggingInstrumentor {
+const debug = require('debug')('agentops:instrumentation:console-logging');
+
+export class ConsoleLoggingInstrumentation extends InstrumentationBase {
+  static readonly metadata: InstrumentorMetadata = {
+    name: 'console-logging-instrumentation',
+    version: '1.0.0',
+    description: 'Instrumentation for console logging capture',
+    targetLibrary: 'console', // Dummy target since console is global
+    targetVersions: ['*']
+  };
+  static readonly useRuntimeTargeting = true;
+
   private originalMethods: Map<string, Function> = new Map();
   private isPatched: boolean = false;
+
+  protected setup(moduleExports: any, moduleVersion?: string): any {
+    this.patch();
+    return moduleExports;
+  }
+
+  protected teardown(moduleExports: any, moduleVersion?: string): any {
+    // Export logs before unpatching if we have spans exported
+    this.exportLogsIfNeeded();
+    this.unpatch();
+    return moduleExports;
+  }
 
   /**
    * Patch console methods to capture output to the log buffer
    */
-  patch(): void {
+  private patch(): void {
     if (this.isPatched) {
       return;
     }
+
+    debug('patching console methods');
 
     // List of console methods to patch
     const methodsToPatch = ['log', 'info', 'warn', 'error', 'debug'];
@@ -50,10 +78,12 @@ export class LoggingInstrumentor {
   /**
    * Restore original console methods
    */
-  unpatch(): void {
+  private unpatch(): void {
     if (!this.isPatched) {
       return;
     }
+
+    debug('unpatching console methods');
 
     this.originalMethods.forEach((originalMethod, method) => {
       (console as any)[method] = originalMethod;
@@ -64,19 +94,16 @@ export class LoggingInstrumentor {
   }
 
   /**
-   * Setup cleanup handlers to restore console on exit
+   * Export logs if needed during teardown
    */
-  setupCleanup(): void {
-    const cleanup = () => {
-      this.unpatch();
-      globalLogBuffer.clear();
-    };
-
-    process.on('exit', cleanup);
-    process.on('SIGINT', cleanup);
-    process.on('SIGTERM', cleanup);
+  private exportLogsIfNeeded(): void {
+    try {
+      if (!globalLogBuffer.isEmpty()) {
+        debug('logs available for export during teardown');
+        // Logs will be uploaded automatically by the flush mechanism
+      }
+    } catch (error) {
+      debug('failed to check logs during teardown:', error);
+    }
   }
-}
-
-// Global logging instrumentor instance
-export const loggingInstrumentor = new LoggingInstrumentor();
+} 

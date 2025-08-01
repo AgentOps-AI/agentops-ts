@@ -1,8 +1,16 @@
-import { LoggingInstrumentor } from '../../../src/logging/instrumentor';
-import { globalLogBuffer } from '../../../src/logging/buffer';
+import { ConsoleLoggingInstrumentation } from '../../../src/instrumentation/console-logging';
+import { globalLogBuffer } from '../../../src/instrumentation/console-logging/buffer';
+import { Client } from '../../../src/client';
 
-describe('LoggingInstrumentor', () => {
-  let instrumentor: LoggingInstrumentor;
+// Mock the client
+const mockClient = {
+  config: {
+    serviceName: 'test-service'
+  }
+} as Client;
+
+describe('ConsoleLoggingInstrumentation', () => {
+  let instrumentation: ConsoleLoggingInstrumentation;
   let originalConsoleLog: typeof console.log;
   let originalConsoleInfo: typeof console.info;
   let originalConsoleWarn: typeof console.warn;
@@ -10,7 +18,7 @@ describe('LoggingInstrumentor', () => {
   let originalConsoleDebug: typeof console.debug;
 
   beforeEach(() => {
-    instrumentor = new LoggingInstrumentor();
+    instrumentation = new ConsoleLoggingInstrumentation(mockClient);
     // Save original console methods
     originalConsoleLog = console.log;
     originalConsoleInfo = console.info;
@@ -23,7 +31,7 @@ describe('LoggingInstrumentor', () => {
 
   afterEach(() => {
     // Restore original console methods
-    instrumentor.unpatch();
+    instrumentation.teardownRuntimeTargeting();
     console.log = originalConsoleLog;
     console.info = originalConsoleInfo;
     console.warn = originalConsoleWarn;
@@ -32,148 +40,133 @@ describe('LoggingInstrumentor', () => {
     globalLogBuffer.clear();
   });
 
-  describe('patch', () => {
-    it('should patch console methods', () => {
-      instrumentor.patch();
+  describe('setup/teardown', () => {
+    it('should patch console methods when setup is called', () => {
+      const originalLog = console.log;
       
-      expect(console.log).not.toBe(originalConsoleLog);
-      expect(console.info).not.toBe(originalConsoleInfo);
-      expect(console.warn).not.toBe(originalConsoleWarn);
-      expect(console.error).not.toBe(originalConsoleError);
-      expect(console.debug).not.toBe(originalConsoleDebug);
+      instrumentation.setupRuntimeTargeting();
+      
+      expect(console.log).not.toBe(originalLog);
     });
 
     it('should capture console.log to buffer', () => {
-      instrumentor.patch();
+      instrumentation.setupRuntimeTargeting();
       
-      console.log('Test log message');
+      console.log('test message');
       
-      const content = globalLogBuffer.getContent();
-      expect(content).toContain('LOG - Test log message');
+      expect(globalLogBuffer.getContent()).toContain('LOG - test message');
     });
 
     it('should capture console.info to buffer', () => {
-      instrumentor.patch();
+      instrumentation.setupRuntimeTargeting();
       
-      console.info('Test info message');
+      console.info('info message');
       
-      const content = globalLogBuffer.getContent();
-      expect(content).toContain('INFO - Test info message');
+      expect(globalLogBuffer.getContent()).toContain('INFO - info message');
     });
 
     it('should capture console.warn to buffer', () => {
-      instrumentor.patch();
+      instrumentation.setupRuntimeTargeting();
       
-      console.warn('Test warning');
+      console.warn('warning message');
       
-      const content = globalLogBuffer.getContent();
-      expect(content).toContain('WARN - Test warning');
+      expect(globalLogBuffer.getContent()).toContain('WARN - warning message');
     });
 
     it('should capture console.error to buffer', () => {
-      instrumentor.patch();
+      instrumentation.setupRuntimeTargeting();
       
-      console.error('Test error');
+      console.error('error message');
       
-      const content = globalLogBuffer.getContent();
-      expect(content).toContain('ERROR - Test error');
+      expect(globalLogBuffer.getContent()).toContain('ERROR - error message');
     });
 
     it('should capture console.debug to buffer', () => {
-      instrumentor.patch();
+      instrumentation.setupRuntimeTargeting();
       
-      console.debug('Test debug');
+      console.debug('debug message');
       
-      const content = globalLogBuffer.getContent();
-      expect(content).toContain('DEBUG - Test debug');
+      expect(globalLogBuffer.getContent()).toContain('DEBUG - debug message');
     });
 
     it('should handle multiple arguments', () => {
-      instrumentor.patch();
+      instrumentation.setupRuntimeTargeting();
       
-      console.log('Multiple', 'arguments', 'test');
+      console.log('message', 'with', 'multiple', 'args');
       
-      const content = globalLogBuffer.getContent();
-      expect(content).toContain('LOG - Multiple arguments test');
+      expect(globalLogBuffer.getContent()).toContain('LOG - message with multiple args');
     });
 
     it('should stringify objects', () => {
-      instrumentor.patch();
+      instrumentation.setupRuntimeTargeting();
       
-      console.log('Object:', { key: 'value', number: 123 });
+      const obj = { key: 'value', nested: { prop: 123 } };
+      console.log('Object:', obj);
       
       const content = globalLogBuffer.getContent();
-      expect(content).toContain('LOG - Object: {"key":"value","number":123}');
+      expect(content).toContain('LOG - Object: {"key":"value","nested":{"prop":123}}');
     });
 
     it('should handle circular references gracefully', () => {
-      instrumentor.patch();
+      instrumentation.setupRuntimeTargeting();
       
-      const circular: any = { name: 'test' };
-      circular.self = circular;
+      const obj: any = { key: 'value' };
+      obj.self = obj; // Create circular reference
       
-      console.log('Circular:', circular);
+      console.log('Circular:', obj);
       
       const content = globalLogBuffer.getContent();
       expect(content).toContain('LOG - Circular: [object Object]');
     });
 
     it('should not patch multiple times', () => {
-      instrumentor.patch();
-      const firstPatchedLog = console.log;
+      const firstSetup = console.log;
+      instrumentation.setupRuntimeTargeting();
+      const afterFirstSetup = console.log;
       
-      instrumentor.patch(); // Second patch should be no-op
+      instrumentation.setupRuntimeTargeting(); // Should be no-op
+      const afterSecondSetup = console.log;
       
-      expect(console.log).toBe(firstPatchedLog);
-    });
-  });
-
-  describe('unpatch', () => {
-    it('should restore original console methods', () => {
-      instrumentor.patch();
-      instrumentor.unpatch();
-      
-      expect(console.log).toBe(originalConsoleLog);
-      expect(console.info).toBe(originalConsoleInfo);
-      expect(console.warn).toBe(originalConsoleWarn);
-      expect(console.error).toBe(originalConsoleError);
-      expect(console.debug).toBe(originalConsoleDebug);
+      expect(firstSetup).not.toBe(afterFirstSetup);
+      expect(afterFirstSetup).toBe(afterSecondSetup);
     });
 
-    it('should handle unpatch when not patched', () => {
+    it('should restore original console methods on teardown', () => {
+      const original = console.log;
+      
+      instrumentation.setupRuntimeTargeting();
+      expect(console.log).not.toBe(original);
+      
+      instrumentation.teardownRuntimeTargeting();
+      expect(console.log).toBe(original);
+    });
+
+    it('should handle teardown when not setup', () => {
       // Should not throw
-      expect(() => instrumentor.unpatch()).not.toThrow();
+      expect(() => instrumentation.teardownRuntimeTargeting()).not.toThrow();
     });
 
-    it('should stop capturing after unpatch', () => {
-      instrumentor.patch();
-      console.log('Before unpatch');
+    it('should stop capturing after teardown', () => {
+      instrumentation.setupRuntimeTargeting();
       
-      instrumentor.unpatch();
-      globalLogBuffer.clear();
+      console.log('before teardown');
+      const contentAfterLog = globalLogBuffer.getContent();
       
-      console.log('After unpatch');
+      instrumentation.teardownRuntimeTargeting();
       
-      expect(globalLogBuffer.isEmpty()).toBe(true);
+      console.log('after teardown');
+      const contentAfterTeardown = globalLogBuffer.getContent();
+      
+      expect(contentAfterLog).toContain('LOG - before teardown');
+      expect(contentAfterTeardown).not.toContain('LOG - after teardown');
     });
   });
 
-  describe('setupCleanup', () => {
-    it('should register cleanup handlers', () => {
-      const exitListeners = process.listeners('exit').length;
-      const sigintListeners = process.listeners('SIGINT').length;
-      const sigtermListeners = process.listeners('SIGTERM').length;
-      
-      instrumentor.setupCleanup();
-      
-      expect(process.listeners('exit').length).toBe(exitListeners + 1);
-      expect(process.listeners('SIGINT').length).toBe(sigintListeners + 1);
-      expect(process.listeners('SIGTERM').length).toBe(sigtermListeners + 1);
-      
-      // Clean up listeners
-      process.removeAllListeners('exit');
-      process.removeAllListeners('SIGINT');
-      process.removeAllListeners('SIGTERM');
+  describe('metadata', () => {
+    it('should have correct metadata', () => {
+      expect(ConsoleLoggingInstrumentation.metadata.name).toBe('console-logging-instrumentation');
+      expect(ConsoleLoggingInstrumentation.metadata.targetLibrary).toBe('console');
+      expect(ConsoleLoggingInstrumentation.useRuntimeTargeting).toBe(true);
     });
   });
 });

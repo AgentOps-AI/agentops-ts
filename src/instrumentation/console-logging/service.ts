@@ -1,6 +1,5 @@
-import { API } from '../api';
+import { API } from '../../api';
 import { globalLogBuffer } from './buffer';
-import { loggingInstrumentor } from './instrumentor';
 
 const debug = require('debug')('agentops:logging');
 
@@ -15,14 +14,12 @@ export class LoggingService {
 
   /**
    * Initialize the logging service
+   * 
+   * Note: Console patching is now handled by LoggingInstrumentation
    */
   initialize(api: API): void {
     this.api = api;
     this.enabled = true;
-    
-    // Start capturing console output
-    loggingInstrumentor.patch();
-    loggingInstrumentor.setupCleanup();
     
     debug('Logging service initialized');
   }
@@ -74,11 +71,12 @@ export class LoggingService {
   }
 
   /**
-   * Disable logging and restore original console methods
+   * Disable logging
+   * 
+   * Note: Console unpatching is now handled by LoggingInstrumentation teardown
    */
   disable(): void {
     if (this.enabled) {
-      loggingInstrumentor.unpatch();
       this.enabled = false;
       debug('Logging service disabled');
     }

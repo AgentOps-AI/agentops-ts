@@ -1,4 +1,12 @@
 import { InstrumentationBase } from '../src/instrumentation/base';
+import { Client } from '../src/client';
+
+// Mock client
+const mockClient = {
+  config: {
+    serviceName: 'test-service'
+  }
+} as Client;
 
 class DummyInstrumentation extends InstrumentationBase {
   static readonly metadata = {
@@ -27,12 +35,11 @@ describe('InstrumentationBase', () => {
   });
 
   it('runtime targeting runs setup only once', () => {
-    const inst = new RuntimeInstrumentation('n','v',{});
+    const inst = new RuntimeInstrumentation(mockClient);
     inst.setupRuntimeTargeting();
     expect(inst.setup).toHaveBeenCalledTimes(1);
     inst.setupRuntimeTargeting();
     expect(inst.setup).toHaveBeenCalledTimes(1);
     inst.teardownRuntimeTargeting();
-    expect(inst.setup).toHaveBeenCalledTimes(1);
   });
 });

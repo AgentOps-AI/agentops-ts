@@ -87,6 +87,9 @@ describe('Client', () => {
       process.env.AGENTOPS_API_KEY = 'test-key';
       const warnAgentOps = new Client();
       
+      // Mock console.warn
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      
       mockFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({ token: 'test-jwt-token' }),
@@ -95,9 +98,10 @@ describe('Client', () => {
       await warnAgentOps.init();
       await warnAgentOps.init(); // Second call
 
-      expect(console.warn).toHaveBeenCalledWith('AgentOps already initialized');
+      expect(warnSpy).toHaveBeenCalledWith('AgentOps already initialized');
       
       // Cleanup
+      warnSpy.mockRestore();
       await warnAgentOps.shutdown();
     });
   });

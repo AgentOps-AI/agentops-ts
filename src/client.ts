@@ -4,7 +4,7 @@ import { Config, LogLevel } from './types';
 import { API, TokenResponse, BearerToken } from './api';
 import { TracingCore } from './tracing';
 import { getGlobalResource } from './attributes';
-import { loggingService } from './logging/service';
+import { loggingService } from './instrumentation/console-logging/service';
 
 const debug = require('debug')('agentops:client');
 

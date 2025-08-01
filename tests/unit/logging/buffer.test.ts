@@ -1,4 +1,4 @@
-import { LogBuffer } from '../../../src/logging/buffer';
+import { LogBuffer } from '../../../src/instrumentation/console-logging/buffer';
 
 describe('LogBuffer', () => {
   let buffer: LogBuffer;
